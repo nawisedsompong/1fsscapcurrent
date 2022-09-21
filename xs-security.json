@@ -1,0 +1,57 @@
+{
+	"xsappname": "ZBENEFIT_MTA",
+	"tenant-mode": "dedicated",
+	"description": "Security profile of called application",
+    "scopes": [
+        {
+            "name": "uaa.user",
+            "description": "UAA"
+        },
+        {
+            "name": "$XSAPPNAME.zadmin",
+            "description": "zadmin"
+        },
+        {
+            "name": "$XSAPPNAME.employeeval",
+            "description": "employeeval"
+        }
+    ],
+    "attributes": [
+        {
+            "name": "Region",
+            "description": "Region",
+            "valueType": "string"
+        }
+    ],
+    "role-templates": [
+        {
+            "name": "zbenefit_role",
+            "description": "UAA",
+            "scope-references": [
+                "uaa.user"
+            ]
+        },
+        {
+            "name": "zadmin",
+            "description": "IHIS Admin",
+            "scope-references": [
+                "$XSAPPNAME.zadmin"
+            ]
+        },
+        {
+            "name": "employeeval",
+            "description": "IHIS Employee",
+            "attribute-references": [
+                {
+                    "name": "Region"
+                }
+            ],
+            "scope-references": [
+                "$XSAPPNAME.employeeval"
+            ]
+        }
+    ],
+    "oauth2-configuration": {
+        "token-validity": 3600
+    }
+}

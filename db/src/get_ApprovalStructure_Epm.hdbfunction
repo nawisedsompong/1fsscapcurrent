@@ -1,0 +1,174 @@
+FUNCTION "get_ApprovalStructure_Epm" (
+          LT_CLAIM_TABLE "tt_claim_type",
+          LT_CLAIM_OWNER VARCHAR(50))
+			RETURNS "tt_ApprStru_table_type" 
+			LANGUAGE SQLSCRIPT 
+       SQL SECURITY INVOKER
+       AS
+	BEGIN
+	
+	DECLARE IDX INT;
+	DECLARE MAXIDX INT;
+	DECLARE lv_index INT;
+	DECLARE LT_APP_STRU_TABLE "tt_ApprStru_table_type";
+	
+	
+	
+		 MAXIDX = RECORD_COUNT(:LT_CLAIM_TABLE);
+	      FOR IDX IN 1..MAXIDX DO	
+	      
+	      DECLARE LT_CLAIM_SINGLE "tt_claim_type";
+	      
+	      :LT_CLAIM_SINGLE.INSERT((
+	      							:LT_CLAIM_TABLE.EMPLOYEE_ID[IDX],
+	    							:LT_CLAIM_TABLE.CLAIM_CODE[IDX],
+	    							:LT_CLAIM_TABLE.CLAIM_REFERENCE[IDX],
+	      							:LT_CLAIM_TABLE.CLAIM_DATE[IDX],
+	      							:LT_CLAIM_TABLE.CATEGORY_CODE[IDX],
+	      							:LT_CLAIM_TABLE.CLAIM_AMOUNT[IDX],
+	      							:LT_CLAIM_TABLE.CLAIM_CATEGORY[IDX],
+	      							:LT_CLAIM_TABLE.SUBMITTED_BY[IDX],
+	      							:LT_CLAIM_TABLE.BEHALF_FLAG[IDX],
+	      							:LT_CLAIM_TABLE.FIRST_LEVEL_APPROVER[IDX],
+	      							:LT_CLAIM_TABLE.RECEIPT_DATE[IDX],
+	      							:LT_CLAIM_TABLE.REMARKS_EMPLOYEE[IDX],
+	      							:LT_CLAIM_TABLE.CLAIM_TYPE[IDX]
+	      							
+	      ));
+	      
+    	
+				LT_APP_STRU_temp = SELECT TOP 1
+										AST."CLAIM_CODE",
+			    						AST."DESCRIPTION",
+			    						AST."SEQUENCE_OF_CHECK",
+			    						AST."PAY_GRADE" ,
+			    						AST."SPONSOR_INSTITUTION",
+			    						AST."EMPLOYEE_DEPARTMENT",
+			    						AST."EMPLOYEE_DIVISION",
+			    						AST."PERSONNEL_AREA",
+			    						AST."PERSONAL_SUBAREA",
+			    						AST."SPECIALISATION",
+			    						empmast."PAYGRADE" as emp_pay_grade,
+										empmast."SPONSOR" as emp_sponsor,
+										empmast."DEPARTMENT" as emp_department, 
+										empmast."DIVISION" as emp_division,
+										empmast."PERSONAL_AREA" as emp_per_area,
+										empmast."PERSONAL_SUB_AREA" as emp_persub_area,
+										empmast."SPECIALISATION" as emp_specialisation,
+										CT."CLAIM_REFERENCE",
+										CT."EMPLOYEE_ID"
+			    					    FROM "BENEFIT_APPROVAL_STRUCTURE" AST
+										INNER JOIN :LT_CLAIM_SINGLE CT
+										ON AST."CLAIM_CODE"= CT."CLAIM_CODE"
+										INNER JOIN "SF_EMPLOYEEINFORMATION"(UserID => :LT_CLAIM_OWNER) empmast
+										ON empmast."PERSONIDEXTERNAL" = CT."EMPLOYEE_ID"
+										and (empmast."PAYGRADE" = AST."PAY_GRADE" OR AST."PAY_GRADE"= 'ALL')
+										and (empmast."SPONSOR" = AST."SPONSOR_INSTITUTION" OR AST."SPONSOR_INSTITUTION"= 'ALL')
+										and (empmast."DEPARTMENT" = AST."EMPLOYEE_DEPARTMENT" OR AST."EMPLOYEE_DEPARTMENT"= 'ALL')
+										and (empmast."DIVISION" = AST."EMPLOYEE_DIVISION" OR AST."EMPLOYEE_DIVISION"= 'ALL')
+										and (empmast."PERSONAL_AREA" = AST."PERSONNEL_AREA" OR AST."PERSONNEL_AREA"= 'ALL')
+										and (empmast."PERSONAL_SUB_AREA" = AST."PERSONAL_SUBAREA" OR AST."PERSONAL_SUBAREA"= 'ALL')
+										and (empmast."SPECIALISATION" = AST."SPECIALISATION" OR AST."SPECIALISATION"= 'ALL')
+										and empmast."STARTDATE" <= TO_SECONDDATE (CONCAT(CT."RECEIPT_DATE", ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS')
+										and empmast."ENDDATE" >= TO_SECONDDATE (CONCAT(CT."RECEIPT_DATE", ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS')
+										ORDER BY "SEQUENCE_OF_CHECK";
+							
+							
+		-- MAXIDX = RECORD_COUNT(:LT_APP_STRU_temp);
+	 --     FOR IDX IN 1..MAXIDX DO	
+ --   			-- DECLARE V1 DECIMAL(10, 2) = :IT.V[IDX] * :IT.PCT[IDX] / 100;
+ --   			-- DECLARE V2 DECIMAL(10, 2) = :IT.V[IDX] - V1;
+ --   			-- :OT1.INSERT((:IT.K[IDX], V1));
+ --   			-- :OT2.INSERT((:IT.K[IDX], V2));
+ --   			IF :LT_APP_STRU_temp.PAY_GRADE[IDX]='ALL' 
+ --   			or :LT_APP_STRU_temp.PAY_GRADE[IDX]=:LT_APP_STRU_temp.emp_pay_grade[IDX] THEN
+ --   				IF :LT_APP_STRU_temp.SPONSOR_INSTITUTION[IDX]='ALL' 
+ --   				or :LT_APP_STRU_temp.SPONSOR_INSTITUTION[IDX]=:LT_APP_STRU_temp.emp_sponsor[IDX] THEN
+ --   					IF :LT_APP_STRU_temp.EMPLOYEE_DEPARTMENT[IDX]='ALL' 
+ --   					or :LT_APP_STRU_temp.EMPLOYEE_DEPARTMENT[IDX]=:LT_APP_STRU_temp.emp_department[IDX] THEN
+ --   						IF :LT_APP_STRU_temp.EMPLOYEE_DIVISION[IDX]='ALL' 
+ --   						or :LT_APP_STRU_temp.EMPLOYEE_DIVISION[IDX]=:LT_APP_STRU_temp.emp_division[IDX] THEN
+ --   							IF :LT_APP_STRU_temp.PERSONNEL_AREA[IDX]='ALL' 
+ --   							or :LT_APP_STRU_temp.PERSONNEL_AREA[IDX]=:LT_APP_STRU_temp.emp_per_area[IDX] THEN
+ --   								IF :LT_APP_STRU_temp.PERSONAL_SUBAREA[IDX]='ALL' 
+ --   								or :LT_APP_STRU_temp.PERSONAL_SUBAREA[IDX]=:LT_APP_STRU_temp.emp_persub_area[IDX] THEN
+ --   									IF :LT_APP_STRU_temp.SPECIALISATION[IDX]='ALL' 
+ --   									or :LT_APP_STRU_temp.SPECIALISATION[IDX]=:LT_APP_STRU_temp.emp_specialisation[IDX] THEN
+ --   							:LT_APP_STRU_TABLE.INSERT((:LT_APP_STRU_temp.CLAIM_CODE[IDX], :LT_APP_STRU_temp.DESCRIPTION[IDX], :LT_APP_STRU_temp.SEQUENCE_OF_CHECK[IDX],:LT_APP_STRU_temp.CLAIM_REFERENCE[IDX],:LT_APP_STRU_temp.EMPLOYEE_ID[IDX]));
+ --   						BREAK;
+ --   					END IF;
+ --   				  END IF;
+ --   		       END IF;
+ --   	     	END IF;
+	-- 		END IF;
+	-- 	END IF;
+	--  END IF;
+	-- 	 END FOR;
+	
+	-- LT_APP_STRU_temp=						SELECT TOP 1 
+	-- 													ASTlast."CLAIM_CODE",
+	-- 						    						ASTlast."DESCRIPTION",
+	-- 						    						ASTlast."SEQUENCE_OF_CHECK",
+	-- 						    						ASTlast."CLAIM_REFERENCE",
+	-- 													ASTlast."EMPLOYEE_ID" FROM(
+	-- 											SELECT 
+	-- 													ASTlastbef."CLAIM_CODE",
+	-- 						    						ASTlastbef."DESCRIPTION",
+	-- 						    						ASTlastbef."SEQUENCE_OF_CHECK",
+	-- 						    						ASTlastbef."CLAIM_REFERENCE",
+	-- 													ASTlastbef."EMPLOYEE_ID",
+	-- 													ASTlastbef."SPECIALISATION"
+	-- 													FROM (
+ --   											 SELECT 
+ --   													ASTmid."CLAIM_CODE",
+	-- 						    						ASTmid."DESCRIPTION",
+	-- 						    						ASTmid."SEQUENCE_OF_CHECK",
+	-- 						    						ASTmid."CLAIM_REFERENCE",
+	-- 													ASTmid."EMPLOYEE_ID",
+	-- 													ASTmid."PERSONNEL_AREA",
+	-- 						    						ASTmid."PERSONAL_SUBAREA",
+	-- 						    						ASTmid."SPECIALISATION"
+	-- 													FROM (
+ --   											SELECT 
+	-- 													AST."CLAIM_CODE",
+	-- 						    						AST."DESCRIPTION",
+	-- 						    						AST."SEQUENCE_OF_CHECK",
+	-- 						    						AST."PAY_GRADE" ,
+	-- 						    						AST."SPONSOR_INSTITUTION",
+	-- 						    						AST."EMPLOYEE_DEPARTMENT",
+	-- 						    						AST."EMPLOYEE_DIVISION",
+	-- 						    						AST."PERSONNEL_AREA",
+	-- 						    						AST."PERSONAL_SUBAREA",
+	-- 						    						AST."SPECIALISATION",
+	-- 						    						-- empmast."PAYGRADE" as emp_pay_grade,
+	-- 													-- empmast."SPONSOR" ,
+	-- 													-- empmast."DEPARTMENT", 
+	-- 													-- empmast."DIVISION",
+	-- 													-- empmast."PERSONAL_AREA",
+	-- 													-- empmast."PERSONAL_SUB_AREA",
+	-- 													-- empmast."SPECIALISATION",
+	-- 													CT."CLAIM_REFERENCE",
+	-- 													CT."EMPLOYEE_ID"
+	-- 						    					    FROM "BENEFIT_APPROVAL_STRUCTURE" AST
+	-- 													INNER JOIN :LT_CLAIM_TABLE CT
+	-- 													ON AST."CLAIM_CODE"= CT."CLAIM_CODE"
+	-- 													INNER JOIN "SF_EMPLOYEEINFORMATION"(UserID => :LT_CLAIM_OWNER) empmast
+	-- 													ON empmast."PERSONIDEXTERNAL" = CT."EMPLOYEE_ID"
+	-- 													where empmast."PAYGRADE" = AST."PAY_GRADE" OR AST."PAY_GRADE"= 'ALL') ASTmid
+	-- 													INNER JOIN "SF_EMPLOYEEINFORMATION"(UserID => :LT_CLAIM_OWNER) empmast
+	-- 													on empmast."DEPARTMENT" = ASTmid."EMPLOYEE_DEPARTMENT" OR ASTmid."EMPLOYEE_DEPARTMENT"= 'ALL'
+	-- 													where empmast."DIVISION" = ASTmid."EMPLOYEE_DIVISION" OR ASTmid."EMPLOYEE_DIVISION"= 'ALL') ASTlastbef
+	-- 													INNER JOIN "SF_EMPLOYEEINFORMATION"(UserID => :LT_CLAIM_OWNER) empmast
+	-- 													ON empmast."PERSONAL_AREA" = ASTlastbef."PERSONNEL_AREA" OR ASTlastbef."PERSONNEL_AREA"= 'ALL'
+	-- 													WHERE empmast."PERSONAL_SUB_AREA" = ASTlastbef."PERSONAL_SUBAREA" OR ASTlastbef."PERSONAL_SUBAREA"= 'ALL') ASTlast
+	-- 													INNER JOIN "SF_EMPLOYEEINFORMATION"(UserID => :LT_CLAIM_OWNER) empmast
+	-- 													ON empmast."SPECIALISATION" = ASTlast."SPECIALISATION" OR ASTlast."SPECIALISATION"= 'ALL'
+	-- 													ORDER BY "SEQUENCE_OF_CHECK";
+														
+				:LT_APP_STRU_TABLE.INSERT((:LT_APP_STRU_temp.CLAIM_CODE[1], :LT_APP_STRU_temp.DESCRIPTION[1], :LT_APP_STRU_temp.SEQUENCE_OF_CHECK[1],:LT_APP_STRU_temp.CLAIM_REFERENCE[1],:LT_APP_STRU_temp.EMPLOYEE_ID[1]));								
+		 END FOR;
+		 
+		return :LT_APP_STRU_TABLE;
+	
+		
+END;

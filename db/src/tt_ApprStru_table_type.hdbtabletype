@@ -1,0 +1,8 @@
+TYPE "tt_ApprStru_table_type" 
+AS TABLE (
+		 "CLAIM_CODE" VARCHAR(50),
+    	 "DESCRIPTION"  VARCHAR(100),
+    	 "SEQUENCE_OF_CHECK" Integer,
+    	 "CLAIM_REFERENCE"  VARCHAR(150),
+    	 "EMPLOYEE_ID" VARCHAR(50)
+		 )            

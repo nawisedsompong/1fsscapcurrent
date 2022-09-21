@@ -1,0 +1,104 @@
+{
+	"name": "zbenefit-srv",
+	"description": "Generated from ../package.json, do not change!",
+	"version": "1.0.0",
+	"dependencies": {
+		"@sap/cds": "^5",
+		"express": "^4.17.1",
+		"@sap/cds-odata-v2-adapter-proxy": "^1.7.9",
+		"sap-hdbext-promisfied": "latest",
+		"@sap/hdbext": "latest",
+		"@sap/audit-logging": "^5",
+		"@sap/xsenv": "^3",
+		"@sap/xssec": "^3",
+		"debug": "^4.3",
+		"@sap/hana-client": "^2.10.20",
+		"helmet": "^4.6.0",
+		"passport": "^0.4.1",
+		"nodemailer": "^6.6.3",
+		"request-promise": "^4.2.6",
+		"request": "^2.88.2",
+		"exceljs": "^4",
+		"node-xlsx": "^0.16.1",
+		"short-unique-id": "^4.4.4",
+		"node-worker-threads-pool": "^1.5.1",
+        "worker-thread": "^1.1.0",
+        "uuid": "8.3.2"
+	},
+	"engines": {
+		"node": "^10 || ^12 || ^14"
+	},
+	"devDependencies": {
+		"@sap/hdi-deploy": "4.1.0"
+	},
+	"scripts": {
+		"postinstall": "npm dedupe && node .build.js",
+		"start": "node ./node_modules/@sap/cds/bin/cds.js serve gen/csn.json",
+		"watch": "nodemon -w . -i node_modules/**,.git/** -e cds -x npm run build"
+	},
+	"private": true,
+	"cds": {
+		"requires": {
+			"db": {
+				"kind": "hana",
+				"pool": {
+					"min": 0,
+					"max": 1000000,
+					"testOnBorrow": true,
+					"acquireTimeoutMillis": 10000000,
+					"softIdleTimeoutMillis": 30000000,
+					"idleTimeoutMillis": 30000000,
+					"evictionRunIntervalMillis": 60000000
+				}
+			},
+			"uaa": {
+				"kind": "xsuaa"
+			},
+			"auth": {
+				"[production]": {
+					"strategy": "JWT"
+				},
+				"[development]": {
+					"strategy": "mock",
+					"users": {
+						"joe": {
+							"roles": [
+								"Admin",
+								"Viewer"
+							],
+							"userAttributes": {
+								"Region": [
+									"$UNRESTRICTED"
+								]
+							}
+						},
+						"julie": {
+							"roles": [
+								"Viewer"
+							],
+							"userAttributes": {
+								"Region": [
+									"North America",
+									"Asia"
+								]
+							}
+						},
+						"bob": {
+							"roles": [
+								"Viewer"
+							],
+							"userAttributes": {
+								"Region": [
+									"Europe"
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		"hana": {
+			"deploy-format": "hdbtable"
+		}
+	}
+}

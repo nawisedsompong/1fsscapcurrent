@@ -1,0 +1,45 @@
+PROCEDURE "proc_wrc_hr_submit"( out LT_VAR_OUT NVARCHAR(2),
+IN LT_MC_CLAIM_TABLE "tt_wrc_claim_type"
+)
+   LANGUAGE SQLSCRIPT
+   SQL SECURITY INVOKER
+   --DEFAULT SCHEMA <default_schema_name>
+ AS
+BEGIN
+		DECLARE IDX INT;
+		DECLARE MAXIDX INT;
+		DECLARE LT_EMP_ID VARCHAR(50);
+		DECLARE LT_ON_BEH VARCHAR(50);
+		LT_CLAIM_PROC_DATA = SELECT 
+								CT."EMPLOYEE_ID",
+								CT."CLAIM_CODE",
+								CT."CLAIM_REFERENCE",
+								CT."CLAIM_DATE",
+								CT."CATEGORY_CODE",
+								CT."CLAIM_AMOUNT",
+								CT."CLAIM_CATEGORY",
+								CT."SUBMITTED_BY",
+								CT."BEHALF_FLAG"
+							FROM  :LT_MC_CLAIM_TABLE CT;
+							
+							LT_EMP_ID = :LT_CLAIM_PROC_DATA.EMPLOYEE_ID[1];
+							-- LT_ON_BEH = :LT_CLAIM_PROC_DATA.BEHALF_FLAG[1];
+					-- CALL "claimApprovalStructure"(
+					-- 								LT_CLAIM_TABLE => :LT_CLAIM_PROC_DATA,
+					-- 								LT_CATEGORY_CODE=> 'WRC_HR',
+					-- 								LT_CLAIM_OWNER=>:LT_EMP_ID,
+					-- 								-- LT_ON_BEH=>:LT_ON_BEH,
+					--                                 LT_VAR_OUT => LT_VAR_OUT);
+					                                
+					MERGE INTO "BENEFIT_WRC_HR_MASTER_CLAIM" WRCHR
+    				USING "BENEFIT_CLAIM_STATUS" AS CLS
+    				ON WRCHR."EMPLOYEE_ID"   = CLS."EMPLOYEE_ID"
+					AND WRCHR."CLAIM_REFERENCE"= CLS."CLAIM_REFERENCE"
+    				WHEN MATCHED THEN UPDATE SET WRCHR."FIRST_LEVEL_APPROVER" = CLS."APPROVER1",
+    				WRCHR."SECOND_LEVEL_APPROVER" = CLS."APPROVER2",
+    				WRCHR."THIRD_LEVEL_APPROVER" = CLS."APPROVER3",
+    				WRCHR."CLAIM_STATUS" = CLS."STATUS";
+		
+		LT_VAR_OUT :='s'; 
+	
+END

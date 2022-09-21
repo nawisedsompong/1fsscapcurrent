@@ -1,0 +1,107 @@
+PROCEDURE "upsertCPIytd"( out LT_VAR_OUT NVARCHAR(2),
+-- out LT_POSTING_X  TABLE (
+-- 			"ESTIMATEPAYMENTDATE" DATE,
+-- 			"EMPLOYEE_ID" VARCHAR(100),
+-- 			"POSTING_AVAILABLE" VARCHAR(10),
+-- 			"CLAIM_REFERENCE" VARCHAR(50)
+-- 		),
+IN LT_AP_CLAIM_TABLE "tt_ytdreport_Table"
+)
+   LANGUAGE SQLSCRIPT
+   SQL SECURITY INVOKER
+   --DEFAULT SCHEMA <default_schema_name>
+ AS
+BEGIN
+		DECLARE IDX INT;
+		DECLARE MAXIDX INT;
+		DECLARE lv_index INT;
+		DECLARE LT_EMP_ID VARCHAR(30);
+		DECLARE EMPLOYEE VARCHAR(30);
+		DECLARE YEAR VARCHAR(20);
+		DECLARE NO_DUPLICATE "tt_ytdreport_Table";
+		DECLARE EXIT HANDLER FOR SQLEXCEPTION SELECT ::SQL_ERROR_CODE, ::SQL_ERROR_MESSAGE FROM DUMMY;					
+							
+		NO_DUPLICATE = SELECT DISTINCT * FROM :LT_AP_CLAIM_TABLE;
+		
+					MERGE INTO "CALCULATION_PRORATED_CLAIMS_YTD" YTD
+    				USING :NO_DUPLICATE AS CLSE
+    				ON CLSE."EMPLOYEE"   = YTD."EMPLOYEE"
+					AND CLSE."CLAIM_CODE_VALUE"= YTD."CLAIM_CODE_VALUE"
+					AND CLSE."YEAR"= YTD."YEAR"
+    				WHEN MATCHED THEN UPDATE SET YTD."DESCRIPTION" = CLSE."DESCRIPTION",
+    											 YTD."YTD_OTHER" = CLSE."YTD_OTHER",
+    											 YTD."YTD_CONSULT" = CLSE."YTD_CONSULT",
+    											 YTD."YTD_WARD_CHARGE" = CLSE."YTD_WARD_CHARGE",
+    											 YTD."YTD_HOSPITAL_FEE" = CLSE."YTD_HOSPITAL_FEE",
+    											 YTD."PENDING_AMOUNT" = CLSE."PENDING_AMOUNT",
+    											 YTD."TAKEN_AMOUNT" = CLSE."TAKEN_AMOUNT",
+    											 YTD."BALANCE" = CLSE."BALANCE",
+    											 YTD."ENTITLEMENT" = CLSE."ENTITLEMENT",
+    											 YTD."PAY_GRADE" = CLSE."PAY_GRADE",
+    											 YTD."PERSONAL_AREA" = CLSE."PERSONAL_AREA",
+    											 YTD."DEPARMENT" = CLSE."DEPARMENT",
+    											 YTD."DIVISION" = CLSE."DIVISION"
+    				WHEN NOT MATCHED THEN INSERT(
+    											EMPLOYEE ,
+										    	CLAIM_CODE_VALUE,
+												DESCRIPTION,
+												YEAR,
+												YTD_OTHER,
+										    	YTD_CONSULT,
+										    	YTD_WARD_CHARGE,
+										    	YTD_HOSPITAL_FEE,
+										    	PENDING_AMOUNT,
+										    	TAKEN_AMOUNT,
+										    	BALANCE,
+										    	ENTITLEMENT,
+										    	PAY_GRADE,
+												PERSONAL_AREA,
+												PERSONAL_SUB_AREA,
+												DEPARMENT,
+												DIVISION
+    				) VALUES (					
+    											CLSE.EMPLOYEE ,
+										    	CLSE.CLAIM_CODE_VALUE,
+												CLSE.DESCRIPTION,
+												CASE WHEN CLSE.YEAR IS NULL THEN
+												EXTRACT(YEAR FROM CURRENT_DATE) ELSE CLSE.YEAR END ,
+												CLSE.YTD_OTHER,
+										    	CLSE.YTD_CONSULT,
+										    	CLSE.YTD_WARD_CHARGE,
+										    	CLSE.YTD_HOSPITAL_FEE,
+										    	CLSE.PENDING_AMOUNT,
+										    	CLSE.TAKEN_AMOUNT,
+										    	CLSE.BALANCE,
+										    	CLSE.ENTITLEMENT,
+										    	CLSE.PAY_GRADE,
+												CLSE.PERSONAL_AREA,
+												CLSE.PERSONAL_SUB_AREA,
+												CLSE.DEPARMENT,
+												CLSE.DIVISION
+    					
+    				);
+    			
+----YTD Report Status
+			EMPLOYEE = :LT_AP_CLAIM_TABLE.EMPLOYEE[1];
+			YEAR = :LT_AP_CLAIM_TABLE.YEAR[1];
+			
+			UPSERT "CALCULATION_YTD_EMPLOYEE_CLAIM_STATUS" VALUES (:EMPLOYEE, :YEAR ,'NU') WHERE "EMPLOYEE_ID" = :EMPLOYEE AND YEAR = :YEAR ;
+			-- MERGE INTO "CALCULATION_YTD_EMPLOYEE_CLAIM_STATUS" YTD
+   -- 				USING :LT_AP_CLAIM_TABLE AS CLSE
+   -- 				ON YTD."EMPLOYEE_ID"   = CLSE."EMPLOYEE"
+			-- 		AND YTD."YEAR"   = CLSE."YEAR"
+   -- 				WHEN MATCHED THEN UPDATE SET YTD."STATUS" = 'NU'
+   -- 				WHEN NOT MATCHED THEN INSERT(
+   -- 											EMPLOYEE_ID,
+			-- 									YEAR,
+			-- 									STATUS
+   -- 				) VALUES (					
+   -- 											CLSE."EMPLOYEE",
+			-- 									CASE WHEN CLSE.YEAR IS NULL THEN
+			-- 									EXTRACT(YEAR FROM CURRENT_DATE) ELSE CLSE.YEAR END ,
+			-- 									'NU'
+   -- 				);
+    				
+		LT_VAR_OUT :='s'; 
+	
+END

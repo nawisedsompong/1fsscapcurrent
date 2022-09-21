@@ -1,0 +1,72 @@
+FUNCTION "get_PaymentDate_Value" (
+          LT_AP_TABLE "tt_approval_claim_type")
+			RETURNS TABLE (
+			"ESTIMATEPAYMENTDATE" DATE,
+			"EMPLOYEE_ID" VARCHAR(100),
+			"POSTING_AVAILABLE" VARCHAR(10),
+			"CLAIM_REFERENCE" VARCHAR(50)
+		)
+			LANGUAGE SQLSCRIPT 
+       SQL SECURITY INVOKER
+       AS
+	BEGIN
+	
+		DECLARE IDX INT;
+		DECLARE MAXIDX INT;
+		DECLARE lv_index INT;
+		DECLARE LT_OUT TABLE (
+			"ESTIMATEPAYMENTDATE" DATE,
+			"EMPLOYEE_ID" VARCHAR(100),
+			"POSTING_AVAILABLE" VARCHAR(10),
+			"CLAIM_REFERENCE" VARCHAR(50)
+		);
+		
+	FOR lv_index IN 1..record_count(:LT_AP_TABLE) DO
+	DECLARE vEmployee VARCHAR(20);
+	DECLARE vClaimRef VARCHAR(50);
+	DECLARE vClaimDate Date;
+	DECLARE vCount INT;
+	DECLARE vCutoffCount INT;
+	
+	 vEmployee = :LT_AP_TABLE.CLAIM_OWNER_ID[lv_index];
+	 vClaimDate = :LT_AP_TABLE.CLAIM_DATE[lv_index];
+	 vClaimRef = :LT_AP_TABLE.CLAIM_REFERENCE[lv_index];
+	 --SELECT COUNT(*) into vCount FROM :LT_OUT WHERE "EMPLOYEE_ID"= :vEmployee;--
+	 
+	 ---IF :vCount = 0 THEN---
+	 
+	LT_APP_STRU_temp = SELECT TOP 1
+							-- CUT."COMPANY",
+							-- CUT."PAYROLLAREA",
+							-- CUT."PAYROLLPERIOD",
+							-- CUT."CLAIMFINALAPPROVALDATEFROM",
+							-- CUT."CLAIMFINALAPPROVALDATETO",
+							CUT."ESTIMATEPAYMENTDATE",
+							-- CUT."POSTINGCUTOFFDATE",
+							-- CUT."REPLICATIONRESTART"
+							empmast."PERSONIDEXTERNAL" as "EMPLOYEE_ID",
+							'Y' as "POSTING_AVAILABLE",
+							vClaimRef as "CLAIM_REFERENCE"
+    					    FROM "SF_CLAIMPOSTINGCUTOFF" CUT
+							INNER JOIN "SF_EMPLOYEEINFORMATION"(UserID => :vEmployee) empmast
+							ON empmast."PERSONAL_AREA" = CUT."COMPANY"
+							and empmast."STARTDATE" <= TO_SECONDDATE (CONCAT(:vClaimDate, ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS')
+							and empmast."ENDDATE" >= TO_SECONDDATE (CONCAT(:vClaimDate, ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS')
+							WHERE CUT."CLAIMFINALAPPROVALDATEFROM" <= CURRENT_DATE
+							and CUT."CLAIMFINALAPPROVALDATETO" >= CURRENT_DATE
+							ORDER BY empmast."SEQNUMBER" DESC;
+				
+		SELECT COUNT(*) into vCutoffCount FROM :LT_APP_STRU_temp ;		
+							
+		IF :vCutoffCount <> 0 THEN
+			:LT_OUT.INSERT(:LT_APP_STRU_temp,lv_index);
+		ELSE
+			:LT_OUT.INSERT(('',:vEmployee,'X',:vClaimRef),lv_index);
+		END IF;
+		
+	END FOR;
+
+		return :LT_OUT;
+	
+		
+END;

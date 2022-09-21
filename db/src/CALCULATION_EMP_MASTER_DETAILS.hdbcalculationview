@@ -1,0 +1,702 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Calculation:scenario xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:Calculation="http://www.sap.com/ndb/BiModelCalculation.ecore" id="CALCULATION_EMP_MASTER_DETAILS" applyPrivilegeType="NONE" dataCategory="DIMENSION" dimensionType="STANDARD" schemaVersion="3.0" outputViewType="Projection" cacheInvalidationPeriod="HOURLY" enforceSqlExecution="false">
+<descriptions defaultDescription="CALCULATION_EMP_MASTER_DETAILS.hdbcalculationview"/>
+<localVariables>
+  <variable id="USER_ID" parameter="true">
+    <descriptions defaultDescription="Employee USER_ID "/>
+    <variableProperties datatype="NVARCHAR" length="50" mandatory="true">
+      <valueDomain type="empty"/>
+      <selection multiLine="false" type="SingleValue"/>
+    </variableProperties>
+  </variable>
+</localVariables>
+<variableMappings/>
+<dataSources>
+  <DataSource id="SF_EMPJOB">
+    <resourceUri>SF_EMPJOB</resourceUri>
+  </DataSource>
+  <DataSource id="SF_PERPERSONALVIEW">
+    <resourceUri>SF_PERPERSONALVIEW</resourceUri>
+  </DataSource>
+  <DataSource id="SF_PEREMAIL">
+    <resourceUri>SF_PEREMAIL</resourceUri>
+  </DataSource>
+  <DataSource id="BENEFIT_CLAIM_DIVISION">
+    <resourceUri>BENEFIT_CLAIM_DIVISION</resourceUri>
+  </DataSource>
+  <DataSource id="BENEFIT_CLAIM_DEPARTMENT">
+    <resourceUri>BENEFIT_CLAIM_DEPARTMENT</resourceUri>
+  </DataSource>
+  <DataSource id="GET_EMP_MANADM_STAT" type="TABLE_FUNCTION">
+    <resourceUri>GET_EMP_MANADM_STAT</resourceUri>
+  </DataSource>
+</dataSources>
+<calculationViews>
+  <calculationView xsi:type="Calculation:ProjectionView" id="EMP_JOB_PROJECTION" filterExpressionLanguage="SQL">
+    <viewAttributes>
+      <viewAttribute id="SEQNUMBER"/>
+      <viewAttribute id="STARTDATE"/>
+      <viewAttribute id="USERID"/>
+      <viewAttribute id="CUSTOMSTRING3"/>
+      <viewAttribute id="CUSTOMSTRING4"/>
+      <viewAttribute id="PAYGRADE"/>
+      <viewAttribute id="EMPLOYEECLASS"/>
+      <viewAttribute id="COMPANY"/>
+      <viewAttribute id="LOCATION"/>
+      <viewAttribute id="MANAGERID"/>
+      <viewAttribute id="DEPARTMENT"/>
+      <viewAttribute id="DIVISION"/>
+      <viewAttribute id="EMPLOYEETYPE"/>
+      <viewAttribute id="STANDARDHOURS"/>
+    
+      <viewAttribute id="ENDDATE"/>
+    </viewAttributes>
+    <calculatedViewAttributes/>
+    <input node="SF_EMPJOB"/>
+    <filter>&quot;USERID&quot; = '$$USER_ID$$' and &quot;STARTDATE&quot; &lt;= CURRENT_DATE and &quot;ENDDATE&quot; &gt;= CURRENT_DATE</filter>
+  </calculationView>
+  <calculationView xsi:type="Calculation:ProjectionView" id="PER_PERSONAL_Projection" filterExpressionLanguage="SQL">
+    <viewAttributes>
+      <viewAttribute id="PERSONIDEXTERNAL"/>
+      <viewAttribute id="STARTDATE"/>
+      <viewAttribute id="FIRSTNAME"/>
+      <viewAttribute id="LASTNAME"/>
+    
+      <viewAttribute id="FULLNAME"/>
+    </viewAttributes>
+    <calculatedViewAttributes/>
+    <input node="SF_PERPERSONALVIEW"/>
+    <filter>&quot;PERSONIDEXTERNAL&quot; = '$$USER_ID$$'</filter>
+  </calculationView>
+  <calculationView xsi:type="Calculation:ProjectionView" id="PEREMAIL_PROJECTION" filterExpressionLanguage="SQL">
+    <viewAttributes>
+      <viewAttribute id="PERSONIDEXTERNAL"/>
+      <viewAttribute id="EMAILADDRESS"/>
+    </viewAttributes>
+    <calculatedViewAttributes/>
+    <input node="SF_PEREMAIL"/>
+    <filter>&quot;PERSONIDEXTERNAL&quot; = '$$USER_ID$$'</filter>
+  </calculationView>
+  <calculationView xsi:type="Calculation:JoinView" id="Peruserid_join" cardinality="CN_N" joinType="inner">
+    <viewAttributes>
+      <viewAttribute id="PERSONIDEXTERNAL"/>
+      <viewAttribute id="STARTDATE_1"/>
+      <viewAttribute id="FIRSTNAME"/>
+      <viewAttribute id="LASTNAME"/>
+    
+      <viewAttribute id="SEQNUMBER"/>
+      <viewAttribute id="STARTDATE"/>
+      <viewAttribute id="USERID"/>
+      <viewAttribute id="CUSTOMSTRING3"/>
+      <viewAttribute id="CUSTOMSTRING4"/>
+      <viewAttribute id="PAYGRADE"/>
+      <viewAttribute id="EMPLOYEECLASS"/>
+      <viewAttribute id="COMPANY"/>
+      <viewAttribute id="LOCATION"/>
+      <viewAttribute id="MANAGERID"/>
+      <viewAttribute id="DEPARTMENT"/>
+      <viewAttribute id="DIVISION"/>
+      <viewAttribute id="EMPLOYEETYPE"/>
+      <viewAttribute id="STANDARDHOURS"/>
+      <viewAttribute id="ENDDATE"/>
+      <viewAttribute id="DEPARTMENT_DESC"/>
+      <viewAttribute id="COMPANY_1"/>
+      <viewAttribute id="DIVISION_CODE"/>
+      <viewAttribute id="DIVISION_DESC"/>
+    
+      <viewAttribute id="FULLNAME"/>
+    </viewAttributes>
+    <calculatedViewAttributes/>
+    <input node="PER_PERSONAL_Projection">
+      <mapping xsi:type="Calculation:AttributeMapping" target="PERSONIDEXTERNAL" source="PERSONIDEXTERNAL"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="STARTDATE_1" source="STARTDATE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="FIRSTNAME" source="FIRSTNAME"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="LASTNAME" source="LASTNAME"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="FULLNAME" source="FULLNAME"/>
+    </input>
+    <input node="emp_division_join">
+      <mapping xsi:type="Calculation:AttributeMapping" target="SEQNUMBER" source="SEQNUMBER"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="STARTDATE" source="STARTDATE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="USERID" source="USERID"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="CUSTOMSTRING3" source="CUSTOMSTRING3"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="CUSTOMSTRING4" source="CUSTOMSTRING4"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="PAYGRADE" source="PAYGRADE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="EMPLOYEECLASS" source="EMPLOYEECLASS"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="COMPANY" source="COMPANY"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="LOCATION" source="LOCATION"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="MANAGERID" source="MANAGERID"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="DEPARTMENT" source="DEPARTMENT"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="DIVISION" source="DIVISION"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="EMPLOYEETYPE" source="EMPLOYEETYPE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="STANDARDHOURS" source="STANDARDHOURS"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="ENDDATE" source="ENDDATE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="DEPARTMENT_DESC" source="DEPARTMENT_DESC"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="COMPANY_1" source="COMPANY_1"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="DIVISION_CODE" source="DIVISION_CODE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="DIVISION_DESC" source="DIVISION_DESC"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="PERSONIDEXTERNAL" source="USERID"/>
+    </input>
+    <joinAttribute name="PERSONIDEXTERNAL"/>
+  </calculationView>
+  <calculationView xsi:type="Calculation:JoinView" id="emp_division_join" cardinality="CN_N" joinType="leftOuter">
+    <viewAttributes>
+      <viewAttribute id="SEQNUMBER"/>
+      <viewAttribute id="STARTDATE"/>
+      <viewAttribute id="USERID"/>
+      <viewAttribute id="CUSTOMSTRING3"/>
+      <viewAttribute id="CUSTOMSTRING4"/>
+      <viewAttribute id="PAYGRADE"/>
+      <viewAttribute id="EMPLOYEECLASS"/>
+      <viewAttribute id="COMPANY"/>
+      <viewAttribute id="LOCATION"/>
+      <viewAttribute id="MANAGERID"/>
+      <viewAttribute id="DEPARTMENT"/>
+      <viewAttribute id="DIVISION"/>
+      <viewAttribute id="EMPLOYEETYPE"/>
+      <viewAttribute id="STANDARDHOURS"/>
+      <viewAttribute id="ENDDATE"/>
+      <viewAttribute id="DEPARTMENT_DESC"/>
+      <viewAttribute id="COMPANY_1"/>
+      <viewAttribute id="DIVISION_CODE"/>
+      <viewAttribute id="DIVISION_DESC"/>
+    </viewAttributes>
+    <calculatedViewAttributes/>
+    <input node="EMP_DEP_JOIN">
+      <mapping xsi:type="Calculation:AttributeMapping" target="SEQNUMBER" source="SEQNUMBER"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="STARTDATE" source="STARTDATE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="USERID" source="USERID"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="CUSTOMSTRING3" source="CUSTOMSTRING3"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="CUSTOMSTRING4" source="CUSTOMSTRING4"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="PAYGRADE" source="PAYGRADE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="EMPLOYEECLASS" source="EMPLOYEECLASS"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="COMPANY" source="COMPANY"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="LOCATION" source="LOCATION"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="MANAGERID" source="MANAGERID"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="DEPARTMENT" source="DEPARTMENT"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="DIVISION" source="DIVISION"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="EMPLOYEETYPE" source="EMPLOYEETYPE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="STANDARDHOURS" source="STANDARDHOURS"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="ENDDATE" source="ENDDATE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="DEPARTMENT_DESC" source="DEPARTMENT_DESC"/>
+    </input>
+    <input node="DIVISION_PROJECT">
+      <mapping xsi:type="Calculation:AttributeMapping" target="COMPANY_1" source="COMPANY"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="DIVISION_CODE" source="DIVISION_CODE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="DIVISION_DESC" source="DIVISION_DESC"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="DIVISION" source="DIVISION_CODE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="COMPANY" source="COMPANY"/>
+    </input>
+    <joinAttribute name="DIVISION"/>
+    <joinAttribute name="COMPANY"/>
+  </calculationView>
+  <calculationView xsi:type="Calculation:JoinView" id="EMP_DEP_JOIN" cardinality="CN_N" joinType="leftOuter">
+    <viewAttributes>
+      <viewAttribute id="SEQNUMBER"/>
+      <viewAttribute id="STARTDATE"/>
+      <viewAttribute id="USERID"/>
+      <viewAttribute id="CUSTOMSTRING3"/>
+      <viewAttribute id="CUSTOMSTRING4"/>
+      <viewAttribute id="PAYGRADE"/>
+      <viewAttribute id="EMPLOYEECLASS"/>
+      <viewAttribute id="COMPANY"/>
+      <viewAttribute id="LOCATION"/>
+      <viewAttribute id="MANAGERID"/>
+      <viewAttribute id="DEPARTMENT"/>
+      <viewAttribute id="DIVISION"/>
+      <viewAttribute id="EMPLOYEETYPE"/>
+      <viewAttribute id="STANDARDHOURS"/>
+      <viewAttribute id="ENDDATE"/>
+      <viewAttribute id="DEPARTMENT_DESC"/>
+    </viewAttributes>
+    <calculatedViewAttributes/>
+    <input node="EMP_JOB_PROJECTION">
+      <mapping xsi:type="Calculation:AttributeMapping" target="SEQNUMBER" source="SEQNUMBER"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="STARTDATE" source="STARTDATE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="USERID" source="USERID"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="CUSTOMSTRING3" source="CUSTOMSTRING3"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="CUSTOMSTRING4" source="CUSTOMSTRING4"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="PAYGRADE" source="PAYGRADE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="EMPLOYEECLASS" source="EMPLOYEECLASS"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="COMPANY" source="COMPANY"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="LOCATION" source="LOCATION"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="MANAGERID" source="MANAGERID"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="DEPARTMENT" source="DEPARTMENT"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="DIVISION" source="DIVISION"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="EMPLOYEETYPE" source="EMPLOYEETYPE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="STANDARDHOURS" source="STANDARDHOURS"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="ENDDATE" source="ENDDATE"/>
+    </input>
+    <input node="DEPARTMENT_PROJECTION">
+      <mapping xsi:type="Calculation:AttributeMapping" target="DEPARTMENT_DESC" source="DEPARTMENT_DESC"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="DEPARTMENT" source="DEPARTMENT_CODE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="COMPANY" source="COMPANY"/>
+    </input>
+    <joinAttribute name="DEPARTMENT"/>
+    <joinAttribute name="COMPANY"/>
+  </calculationView>
+  <calculationView xsi:type="Calculation:ProjectionView" id="DIVISION_PROJECT">
+    <viewAttributes>
+      <viewAttribute id="COMPANY"/>
+      <viewAttribute id="DIVISION_CODE"/>
+      <viewAttribute id="DIVISION_DESC"/>
+    </viewAttributes>
+    <calculatedViewAttributes/>
+    <input node="BENEFIT_CLAIM_DIVISION"/>
+  </calculationView>
+  <calculationView xsi:type="Calculation:ProjectionView" id="DEPARTMENT_PROJECTION">
+    <viewAttributes>
+      <viewAttribute id="DEPARTMENT_DESC"/>
+    
+      <viewAttribute id="DEPARTMENT_CODE"/>
+      <viewAttribute id="COMPANY"/></viewAttributes>
+    <calculatedViewAttributes/>
+    <input node="BENEFIT_CLAIM_DEPARTMENT"/>
+  </calculationView>
+  <calculationView xsi:type="Calculation:JoinView" id="EMail_Join" cardinality="CN_N" joinType="inner">
+    <viewAttributes>
+      <viewAttribute id="PERSONIDEXTERNAL"/>
+      <viewAttribute id="STARTDATE_1"/>
+      <viewAttribute id="FIRSTNAME"/>
+      <viewAttribute id="LASTNAME"/>
+      <viewAttribute id="EMAILADDRESS"/>
+      <viewAttribute id="ADMIN"/>
+      <viewAttribute id="MANAGER"/>
+    
+      <viewAttribute id="BEN_APPROVAL"/>
+      <viewAttribute id="BEN_ON_BEHALF"/>
+      <viewAttribute id="BEN_ELIGIBILITY"/>
+      <viewAttribute id="BEN_MASS_CONFIG"/>
+      <viewAttribute id="BEN_COPAY"/>
+      <viewAttribute id="BEN_MASS_CREATE"/>
+      <viewAttribute id="BEN_INFO"/>
+      <viewAttribute id="BEN_TABLE_MAINT"/>
+      <viewAttribute id="BEN_MED_SAVE"/>
+      <viewAttribute id="ADMIN_ROLE"/>
+      <viewAttribute id="BEN_HR_CHECKER"/>
+      <viewAttribute id="BEN_REPORT"/>
+      <viewAttribute id="BEN_HR_MAKER"/>
+      <viewAttribute id="BEN_COORDIN"/>
+    
+      <viewAttribute id="SEQNUMBER"/>
+      <viewAttribute id="CUSTOMSTRING3"/>
+      <viewAttribute id="CUSTOMSTRING3_1"/>
+      <viewAttribute id="CUSTOMSTRING4"/>
+      <viewAttribute id="PAYGRADE"/>
+      <viewAttribute id="EMPLOYEECLASS"/>
+      <viewAttribute id="COMPANY"/>
+      <viewAttribute id="LOCATION"/>
+      <viewAttribute id="MANAGERID"/>
+      <viewAttribute id="DEPARTMENT"/>
+      <viewAttribute id="DIVISION"/>
+      <viewAttribute id="EMPLOYEETYPE"/>
+      <viewAttribute id="STANDARDHOURS"/>
+      <viewAttribute id="ENDDATE"/>
+      <viewAttribute id="DEPARTMENT_DESC"/>
+      <viewAttribute id="DIVISION_DESC"/>
+      <viewAttribute id="STARTDATE"/>
+      <viewAttribute id="USERID"/>
+    
+      <viewAttribute id="FULLNAME"/>
+    
+      <viewAttribute id="CLAIM_COORD"/>
+    </viewAttributes>
+    <calculatedViewAttributes/>
+    <input node="Peruserid_join">
+      <mapping xsi:type="Calculation:AttributeMapping" target="PERSONIDEXTERNAL" source="PERSONIDEXTERNAL"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="STARTDATE_1" source="STARTDATE_1"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="FIRSTNAME" source="FIRSTNAME"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="LASTNAME" source="LASTNAME"/>
+    
+      <mapping xsi:type="Calculation:AttributeMapping" target="SEQNUMBER" source="SEQNUMBER"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="CUSTOMSTRING3" source="CUSTOMSTRING3"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="CUSTOMSTRING3_1" source="CUSTOMSTRING3"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="CUSTOMSTRING4" source="CUSTOMSTRING4"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="PAYGRADE" source="PAYGRADE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="EMPLOYEECLASS" source="EMPLOYEECLASS"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="COMPANY" source="COMPANY"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="LOCATION" source="LOCATION"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="MANAGERID" source="MANAGERID"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="DEPARTMENT" source="DEPARTMENT"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="DIVISION" source="DIVISION"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="EMPLOYEETYPE" source="EMPLOYEETYPE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="STANDARDHOURS" source="STANDARDHOURS"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="ENDDATE" source="ENDDATE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="DEPARTMENT_DESC" source="DEPARTMENT_DESC"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="DIVISION_DESC" source="DIVISION_DESC"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="STARTDATE" source="STARTDATE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="USERID" source="USERID"/>
+    
+      <mapping xsi:type="Calculation:AttributeMapping" target="FULLNAME" source="FULLNAME"/>
+    </input>
+    <input node="Manag_Adm_Peremail_Join">
+      <mapping xsi:type="Calculation:AttributeMapping" target="EMAILADDRESS" source="EMAILADDRESS"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="ADMIN" source="ADMIN"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="MANAGER" source="MANAGER"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_APPROVAL" source="BEN_APPROVAL"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_ON_BEHALF" source="BEN_ON_BEHALF"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_ELIGIBILITY" source="BEN_ELIGIBILITY"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_MASS_CONFIG" source="BEN_MASS_CONFIG"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_COPAY" source="BEN_COPAY"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_MASS_CREATE" source="BEN_MASS_CREATE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_INFO" source="BEN_INFO"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_TABLE_MAINT" source="BEN_TABLE_MAINT"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_MED_SAVE" source="BEN_MED_SAVE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="ADMIN_ROLE" source="ADMIN_ROLE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_HR_CHECKER" source="BEN_HR_CHECKER"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_REPORT" source="BEN_REPORT"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_HR_MAKER" source="BEN_HR_MAKER"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_COORDIN" source="BEN_COORDIN"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="CLAIM_COORD" source="CLAIM_COORD"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="PERSONIDEXTERNAL" source="PERSONIDEXTERNAL"/>
+    </input>
+    <joinAttribute name="PERSONIDEXTERNAL"/>
+  </calculationView>
+  <calculationView xsi:type="Calculation:JoinView" id="Manag_Adm_Peremail_Join" cardinality="C1_N" joinType="leftOuter">
+    <viewAttributes>
+      <viewAttribute id="EMAILADDRESS"/>
+      <viewAttribute id="ADMIN"/>
+      <viewAttribute id="MANAGER"/>
+      <viewAttribute id="BEN_APPROVAL"/>
+      <viewAttribute id="BEN_ON_BEHALF"/>
+      <viewAttribute id="BEN_ELIGIBILITY"/>
+      <viewAttribute id="BEN_MASS_CONFIG"/>
+      <viewAttribute id="BEN_COPAY"/>
+      <viewAttribute id="BEN_MASS_CREATE"/>
+      <viewAttribute id="BEN_INFO"/>
+      <viewAttribute id="BEN_TABLE_MAINT"/>
+      <viewAttribute id="BEN_MED_SAVE"/>
+      <viewAttribute id="ADMIN_ROLE"/>
+      <viewAttribute id="BEN_HR_CHECKER"/>
+      <viewAttribute id="BEN_REPORT"/>
+      <viewAttribute id="BEN_HR_MAKER"/>
+      <viewAttribute id="BEN_COORDIN"/>
+    
+    
+      <viewAttribute id="PERSONIDEXTERNAL"/>
+      <viewAttribute id="USERID"/>
+      <viewAttribute id="CLAIM_COORD"/>
+    </viewAttributes>
+    <calculatedViewAttributes/>
+    <input node="PEREMAIL_PROJECTION">
+      <mapping xsi:type="Calculation:AttributeMapping" target="PERSONIDEXTERNAL" source="PERSONIDEXTERNAL"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="EMAILADDRESS" source="EMAILADDRESS"/>
+    </input>
+    <input node="Mana_Admin_projection">
+      <mapping xsi:type="Calculation:AttributeMapping" target="ADMIN" source="ADMIN"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="MANAGER" source="MANAGER"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="USERID" source="USERID"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_APPROVAL" source="BEN_APPROVAL"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_ON_BEHALF" source="BEN_ON_BEHALF"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_ELIGIBILITY" source="BEN_ELIGIBILITY"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_MASS_CONFIG" source="BEN_MASS_CONFIG"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_COPAY" source="BEN_COPAY"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_MASS_CREATE" source="BEN_MASS_CREATE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_INFO" source="BEN_INFO"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_TABLE_MAINT" source="BEN_TABLE_MAINT"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_MED_SAVE" source="BEN_MED_SAVE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="ADMIN_ROLE" source="ADMIN_ROLE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_HR_CHECKER" source="BEN_HR_CHECKER"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_REPORT" source="BEN_REPORT"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_HR_MAKER" source="BEN_HR_MAKER"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEN_COORDIN" source="BEN_COORDIN"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="CLAIM_COORD" source="CLAIM_COORD"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="PERSONIDEXTERNAL" source="USERID"/>
+    </input>
+    <joinAttribute name="PERSONIDEXTERNAL"/>
+  </calculationView>
+  <calculationView xsi:type="Calculation:ProjectionView" id="Mana_Admin_projection">
+    <viewAttributes>
+      <viewAttribute id="ADMIN"/>
+      <viewAttribute id="MANAGER"/>
+      <viewAttribute id="USERID"/>
+    
+      <viewAttribute id="BEN_APPROVAL"/>
+      <viewAttribute id="BEN_ON_BEHALF"/>
+      <viewAttribute id="BEN_ELIGIBILITY"/>
+      <viewAttribute id="BEN_MASS_CONFIG"/>
+      <viewAttribute id="BEN_COPAY"/>
+      <viewAttribute id="BEN_MASS_CREATE"/>
+      <viewAttribute id="BEN_INFO"/>
+      <viewAttribute id="BEN_TABLE_MAINT"/>
+      <viewAttribute id="BEN_MED_SAVE"/>
+      <viewAttribute id="ADMIN_ROLE"/>
+      <viewAttribute id="BEN_HR_CHECKER"/>
+      <viewAttribute id="BEN_REPORT"/>
+      <viewAttribute id="BEN_HR_MAKER"/>
+      <viewAttribute id="BEN_COORDIN"/>
+    
+      <viewAttribute id="CLAIM_COORD"/>
+    </viewAttributes>
+    <calculatedViewAttributes/>
+    <input node="GET_EMP_MANADM_STAT"/>
+  </calculationView>
+</calculationViews>
+<logicalModel id="EMail_Join">
+  <attributes>
+    <attribute id="PERSONIDEXTERNAL" order="1" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="PERSONIDEXTERNAL"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="PERSONIDEXTERNAL"/>
+    </attribute>
+    <attribute id="FIRSTNAME" order="2" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="FIRSTNAME"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="FIRSTNAME"/>
+    </attribute>
+    <attribute id="LASTNAME" order="3" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="LASTNAME"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="LASTNAME"/>
+    </attribute>
+    <attribute id="EMAILADDRESS" order="4" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="EMAILADDRESS"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="EMAILADDRESS"/>
+    </attribute>
+    <attribute id="ADMIN" order="5" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="ADMIN"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="ADMIN"/>
+    </attribute>
+    <attribute id="MANAGER" order="6" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="MANAGER"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="MANAGER"/>
+    </attribute>
+    <attribute id="BEN_APPROVAL" order="7" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_APPROVAL"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="BEN_APPROVAL"/>
+    </attribute>
+    <attribute id="BEN_ON_BEHALF" order="8" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_ON_BEHALF"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="BEN_ON_BEHALF"/>
+    </attribute>
+    <attribute id="BEN_ELIGIBILITY" order="9" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_ELIGIBILITY"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="BEN_ELIGIBILITY"/>
+    </attribute>
+    <attribute id="BEN_MASS_CONFIG" order="10" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_MASS_CONFIG"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="BEN_MASS_CONFIG"/>
+    </attribute>
+    <attribute id="BEN_COPAY" order="11" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_COPAY"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="BEN_COPAY"/>
+    </attribute>
+    <attribute id="BEN_MASS_CREATE" order="12" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_MASS_CREATE"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="BEN_MASS_CREATE"/>
+    </attribute>
+    <attribute id="BEN_INFO" order="13" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_INFO"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="BEN_INFO"/>
+    </attribute>
+    <attribute id="BEN_TABLE_MAINT" order="14" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_TABLE_MAINT"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="BEN_TABLE_MAINT"/>
+    </attribute>
+    <attribute id="BEN_MED_SAVE" order="15" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_MED_SAVE"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="BEN_MED_SAVE"/>
+    </attribute>
+    <attribute id="ADMIN_ROLE" order="16" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="ADMIN_ROLE"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="ADMIN_ROLE"/>
+    </attribute>
+    <attribute id="BEN_HR_CHECKER" order="17" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_HR_CHECKER"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="BEN_HR_CHECKER"/>
+    </attribute>
+    <attribute id="BEN_REPORT" order="18" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_REPORT"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="BEN_REPORT"/>
+    </attribute>
+    <attribute id="BEN_HR_MAKER" order="19" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_HR_MAKER"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="BEN_HR_MAKER"/>
+    </attribute>
+    <attribute id="STARTDATE_1" order="20" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="STARTDATE_1"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="STARTDATE_1"/>
+    </attribute>
+    <attribute id="BEN_COORDIN" order="21" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_COORDIN"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="BEN_COORDIN"/>
+    </attribute>
+  
+    <attribute id="DIVISION_DESC" order="22" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="DIVISION_DESC"/>
+  
+      <keyMapping columnObjectName="EMail_Join" columnName="DIVISION_DESC"/>
+  
+    </attribute>
+    <attribute id="DEPARTMENT_DESC" order="23" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="DEPARTMENT_DESC"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="DEPARTMENT_DESC"/>
+    </attribute>
+    <attribute id="ENDDATE" order="24" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="ENDDATE"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="ENDDATE"/>
+    </attribute>
+    <attribute id="STANDARDHOURS" order="25" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="STANDARDHOURS"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="STANDARDHOURS"/>
+    </attribute>
+    <attribute id="EMPLOYEETYPE" order="26" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="EMPLOYEETYPE"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="EMPLOYEETYPE"/>
+    </attribute>
+    <attribute id="DIVISION" order="27" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="DIVISION"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="DIVISION"/>
+    </attribute>
+    <attribute id="DEPARTMENT" order="28" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="DEPARTMENT"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="DEPARTMENT"/>
+    </attribute>
+    <attribute id="MANAGERID" order="29" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="MANAGERID"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="MANAGERID"/>
+    </attribute>
+    <attribute id="LOCATION" order="30" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="LOCATION"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="LOCATION"/>
+    </attribute>
+    <attribute id="COMPANY" order="31" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="COMPANY"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="COMPANY"/>
+    </attribute>
+    <attribute id="EMPLOYEECLASS" order="32" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="EMPLOYEECLASS"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="EMPLOYEECLASS"/>
+    </attribute>
+    <attribute id="PAYGRADE" order="33" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="PAYGRADE"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="PAYGRADE"/>
+    </attribute>
+    <attribute id="CUSTOMSTRING4" order="34" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="CUSTOMSTRING4"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="CUSTOMSTRING4"/>
+    </attribute>
+    <attribute id="CUSTOMSTRING3" order="35" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="CUSTOMSTRING3"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="CUSTOMSTRING3"/>
+    </attribute>
+    <attribute id="SEQNUMBER" order="36" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="SEQNUMBER"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="SEQNUMBER"/>
+    </attribute>
+    <attribute id="STARTDATE" order="37" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="STARTDATE"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="STARTDATE"/>
+    </attribute>
+    <attribute id="USERID" order="38" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="USERID"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="USERID"/>
+    </attribute>
+  
+    <attribute id="FULLNAME" order="39" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="FULLNAME"/>
+  
+      <keyMapping columnObjectName="EMail_Join" columnName="FULLNAME"/>
+  
+    </attribute>
+  
+    <attribute id="CLAIM_COORD" order="40" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="CLAIM_COORD"/>
+      <keyMapping columnObjectName="EMail_Join" columnName="CLAIM_COORD"/>
+    </attribute>
+  </attributes>
+  <calculatedAttributes/>
+  <baseMeasures/>
+  <calculatedMeasures/>
+  <restrictedMeasures/>
+</logicalModel>
+<layout>
+  <shapes>
+    <shape expanded="true" modelObjectName="Output" modelObjectNameSpace="MeasureGroup">
+      <upperLeftCorner x="40" y="85"/>
+    </shape>
+  
+    <shape expanded="true" modelObjectName="EMP_JOB_PROJECTION" modelObjectNameSpace="CalculationView">
+      <upperLeftCorner x="-983" y="657"/>
+      <rectangleSize height="30" width="160"/>
+    </shape>
+    <shape expanded="true" modelObjectName="PER_PERSONAL_Projection" modelObjectNameSpace="CalculationView">
+      <upperLeftCorner x="-84" y="486"/>
+      <rectangleSize height="30" width="160"/>
+    </shape>
+    <shape expanded="true" modelObjectName="PEREMAIL_PROJECTION" modelObjectNameSpace="CalculationView">
+      <upperLeftCorner x="109" y="481"/>
+      <rectangleSize height="30" width="160"/>
+    </shape>
+    <shape expanded="true" modelObjectName="Peruserid_join" modelObjectNameSpace="CalculationView">
+      <upperLeftCorner x="-274" y="372"/>
+      <rectangleSize height="30" width="160"/>
+    </shape>
+    <shape modelObjectName="PER_PERSONAL_Projection" modelObjectNameSpace="Peruserid_join" modelObjectType="JoinNodeInput">
+      <upperLeftCorner x="320" y="30"/>
+      <rectangleSize width="227"/>
+    </shape>
+    <shape modelObjectName="emp_division_join" modelObjectNameSpace="Peruserid_join" modelObjectType="JoinNodeInput">
+      <upperLeftCorner x="620" y="30"/>
+      <rectangleSize width="250"/>
+    </shape>
+    <shape expanded="true" modelObjectName="emp_division_join" modelObjectNameSpace="CalculationView">
+      <upperLeftCorner x="-274" y="539"/>
+      <rectangleSize height="30" width="160"/>
+    </shape>
+    <shape modelObjectName="EMP_DEP_JOIN" modelObjectNameSpace="emp_division_join" modelObjectType="JoinNodeInput">
+      <upperLeftCorner x="20" y="30"/>
+      <rectangleSize width="156"/>
+    </shape>
+    <shape modelObjectName="DIVISION_PROJECT" modelObjectNameSpace="emp_division_join" modelObjectType="JoinNodeInput">
+      <upperLeftCorner x="320" y="30"/>
+      <rectangleSize width="136"/>
+    </shape>
+    <shape expanded="true" modelObjectName="EMP_DEP_JOIN" modelObjectNameSpace="CalculationView">
+      <upperLeftCorner x="-672" y="475"/>
+      <rectangleSize height="30" width="160"/>
+    </shape>
+    <shape modelObjectName="EMP_JOB_PROJECTION" modelObjectNameSpace="EMP_DEP_JOIN" modelObjectType="JoinNodeInput">
+      <upperLeftCorner x="20" y="30"/>
+      <rectangleSize width="206"/>
+    </shape>
+    <shape modelObjectName="DEPARTMENT_PROJECTION" modelObjectNameSpace="EMP_DEP_JOIN" modelObjectType="JoinNodeInput">
+      <upperLeftCorner x="320" y="30"/>
+      <rectangleSize width="231"/>
+    </shape>
+    <shape expanded="true" modelObjectName="DIVISION_PROJECT" modelObjectNameSpace="CalculationView">
+      <upperLeftCorner x="-274" y="749"/>
+      <rectangleSize height="30" width="160"/>
+    </shape>
+    <shape expanded="true" modelObjectName="DEPARTMENT_PROJECTION" modelObjectNameSpace="CalculationView">
+      <upperLeftCorner x="-672" y="869"/>
+      <rectangleSize height="30" width="160"/>
+    </shape>
+  
+    <shape expanded="true" modelObjectName="EMail_Join" modelObjectNameSpace="CalculationView">
+      <upperLeftCorner x="-20" y="255"/>
+      <rectangleSize width="160"/>
+    </shape>
+    <shape modelObjectName="Peruserid_join" modelObjectNameSpace="EMail_Join" modelObjectType="JoinNodeInput">
+      <upperLeftCorner x="20" y="30"/>
+      <rectangleSize width="250"/>
+    </shape>
+    <shape modelObjectName="Manag_Adm_Peremail_Join" modelObjectNameSpace="EMail_Join" modelObjectType="JoinNodeInput">
+      <upperLeftCorner x="320" y="30"/>
+      <rectangleSize width="250"/>
+    </shape>
+    <shape expanded="true" modelObjectName="Manag_Adm_Peremail_Join" modelObjectNameSpace="CalculationView">
+      <upperLeftCorner x="200" y="362"/>
+      <rectangleSize height="30" width="160"/>
+    </shape>
+    <shape modelObjectName="PEREMAIL_PROJECTION" modelObjectNameSpace="Manag_Adm_Peremail_Join" modelObjectType="JoinNodeInput">
+      <upperLeftCorner x="20" y="30"/>
+      <rectangleSize width="210"/>
+    </shape>
+    <shape modelObjectName="Mana_Admin_projection" modelObjectNameSpace="Manag_Adm_Peremail_Join" modelObjectType="JoinNodeInput">
+      <upperLeftCorner x="320" y="30"/>
+      <rectangleSize width="203"/>
+    </shape>
+  
+    <shape expanded="true" modelObjectName="Mana_Admin_projection" modelObjectNameSpace="CalculationView">
+      <upperLeftCorner x="293" y="481"/>
+      <rectangleSize height="30" width="160"/>
+    </shape></shapes>
+</layout>
+</Calculation:scenario>

@@ -1,0 +1,151 @@
+FUNCTION "get_TopClaimFromMaster" (
+          LT_CLAIM_TABLE "tt_claim_type",
+          LT_CLAIM_CATEGORY VARCHAR(50))
+			RETURNS "tt_claim_type" 
+			LANGUAGE SQLSCRIPT 
+       SQL SECURITY INVOKER
+       AS
+	BEGIN
+	
+	DECLARE IDX INT;
+	DECLARE MAXIDX INT;
+	DECLARE lv_index INT;
+	DECLARE LT_APP_STRU_TABLE "tt_ApprStru_table_type";
+	
+							
+		 MAXIDX = RECORD_COUNT(:LT_CLAIM_TABLE);
+	      
+	     FOR IDX IN 1..MAXIDX DO
+	     
+	     DECLARE LT_CLAIM_REFERENCE VARCHAR(100);
+	    	     LT_CLAIM_REFERENCE=:LT_CLAIM_TABLE.CLAIM_REFERENCE[IDX];
+	    	
+	     IF :LT_CLAIM_CATEGORY = 'WRC_HR' THEN
+    		LT_APP_STRU_temp = SELECT TOP 1 
+    							"CLAIM_REFERENCE",
+    							"PARENT_CLAIM_REFERENCE",
+    							"CLAIM_CODE"
+    					    FROM "BENEFIT_WRC_HR_LINEITEM_CLAIM"
+							WHERE "PARENT_CLAIM_REFERENCE"= :LT_CLAIM_REFERENCE;
+		 END IF;
+		 
+		 IF :LT_CLAIM_CATEGORY = 'WRC' THEN
+    		LT_APP_STRU_temp = SELECT TOP 1 
+    								WRCHRitem."CLAIM_REFERENCE",
+    								WRCHRitem."PARENT_CLAIM_REFERENCE",
+    								WRCHRitem."CLAIM_CODE"
+    					    FROM "BENEFIT_WRC_LINEITEM_CLAIM" WRCHRitem
+							WHERE WRCHRitem."PARENT_CLAIM_REFERENCE"= :LT_CLAIM_REFERENCE;
+		 END IF;
+		 
+		 IF :LT_CLAIM_CATEGORY = 'TC' THEN
+    		LT_APP_STRU_temp = SELECT TOP 1 
+    								TC."CLAIM_REFERENCE",
+    								TC."PARENT_CLAIM_REFERENCE",
+    								TC."CLAIM_CODE"
+    					    FROM "BENEFIT_TC_LINEITEM_CLAIM" TC
+							WHERE TC."PARENT_CLAIM_REFERENCE"= :LT_CLAIM_REFERENCE;
+		 END IF;
+		 
+		 
+		 IF :LT_CLAIM_CATEGORY = 'COV' THEN
+    		LT_APP_STRU_temp = SELECT TOP 1 
+    								COV."CLAIM_REFERENCE",
+    								COV."PARENT_CLAIM_REFERENCE",
+    								COV."CLAIM_CODE"
+    					    FROM "BENEFIT_COV_LINEITEM_CLAIM" COV
+							WHERE COV."PARENT_CLAIM_REFERENCE"= :LT_CLAIM_REFERENCE;
+		 END IF;
+		 
+		 IF :LT_CLAIM_CATEGORY = 'SP1' THEN
+    		LT_APP_STRU_temp = SELECT TOP 1 
+    							SP."CLAIM_REFERENCE",
+    							SP."PARENT_CLAIM_REFERENCE",
+    							SP."CLAIM_CODE"
+    					    FROM "BENEFIT_SP1_LINEITEM_CLAIM" SP
+							WHERE SP."PARENT_CLAIM_REFERENCE"= :LT_CLAIM_REFERENCE;
+		 END IF;
+
+         IF :LT_CLAIM_CATEGORY = 'SP2' THEN
+         LT_APP_STRU_temp = SELECT TOP 1 
+                             SP."CLAIM_REFERENCE",
+                             SP."PARENT_CLAIM_REFERENCE",
+                             SP."CLAIM_CODE"
+                         FROM "BENEFIT_SP2_LINEITEM_CLAIM" SP
+                         WHERE SP."PARENT_CLAIM_REFERENCE"= :LT_CLAIM_REFERENCE;
+      END IF;
+
+      IF :LT_CLAIM_CATEGORY = 'SP3' THEN
+      LT_APP_STRU_temp = SELECT TOP 1 
+                          SP."CLAIM_REFERENCE",
+                          SP."PARENT_CLAIM_REFERENCE",
+                          SP."CLAIM_CODE"
+                      FROM "BENEFIT_SP3_LINEITEM_CLAIM" SP
+                      WHERE SP."PARENT_CLAIM_REFERENCE"= :LT_CLAIM_REFERENCE;
+   END IF;
+
+   IF :LT_CLAIM_CATEGORY = 'SP' THEN
+   LT_APP_STRU_temp = SELECT TOP 1 
+                       SP."CLAIM_REFERENCE",
+                       SP."PARENT_CLAIM_REFERENCE",
+                       SP."CLAIM_CODE"
+                   FROM "BENEFIT_SP_LINEITEM_CLAIM" SP
+                   WHERE SP."PARENT_CLAIM_REFERENCE"= :LT_CLAIM_REFERENCE;
+END IF;
+		 
+		 IF :LT_CLAIM_CATEGORY = 'SDFC' THEN
+    		LT_APP_STRU_temp = SELECT TOP 1 
+    								SDFCitem."CLAIM_REFERENCE",
+    								SDFCitem."PARENT_CLAIM_REFERENCE",
+    								SDFCitem."CLAIM_CODE"
+    					    FROM "BENEFIT_SDFC_LINEITEM_CLAIM" SDFCitem
+							WHERE SDFCitem."PARENT_CLAIM_REFERENCE"= :LT_CLAIM_REFERENCE;
+		 END IF;
+		 
+		 IF :LT_CLAIM_CATEGORY = 'SDFR' THEN
+    		LT_APP_STRU_temp = SELECT TOP 1 
+    								SDFRitem."CLAIM_REFERENCE",
+    								SDFRitem."PARENT_CLAIM_REFERENCE",
+    								SDFRitem."CLAIM_CODE"
+    					    FROM "BENEFIT_SDFR_LINEITEM_CLAIM" SDFRitem
+							WHERE SDFRitem."PARENT_CLAIM_REFERENCE"= :LT_CLAIM_REFERENCE;
+		 END IF;
+		 
+		 IF :LT_CLAIM_CATEGORY = 'CPC' THEN
+    		LT_APP_STRU_temp = SELECT TOP 1 
+    								CPCitem."CLAIM_REFERENCE",
+    								CPCitem."PARENT_CLAIM_REFERENCE",
+    								CPCitem."CLAIM_CODE"
+    					    FROM "BENEFIT_CPC_LINEITEM_CLAIM" CPCitem
+							WHERE CPCitem."PARENT_CLAIM_REFERENCE"= :LT_CLAIM_REFERENCE;
+		 END IF;
+		 
+		 
+		 IF :LT_CLAIM_CATEGORY = 'OC' THEN
+    		LT_APP_STRU_temp = SELECT TOP 1 
+    								OCitem."CLAIM_REFERENCE",
+    								OCitem."PARENT_CLAIM_REFERENCE",
+    								OCitem."CLAIM_CODE"
+    					    FROM "BENEFIT_OC_LINEITEM_CLAIM" OCitem
+							WHERE OCitem."PARENT_CLAIM_REFERENCE"= :LT_CLAIM_REFERENCE;
+		 END IF;
+		 
+		 IF :LT_CLAIM_CATEGORY = 'PAY_UP' THEN
+    		LT_APP_STRU_temp = SELECT TOP 1 
+    								PAY_UPitem."CLAIM_REFERENCE",
+    								PAY_UPitem."PARENT_CLAIM_REFERENCE",
+    								PAY_UPitem."CLAIM_CODE"
+    					    FROM "BENEFIT_PAY_UP_LINEITEM_CLAIM" PAY_UPitem
+							WHERE PAY_UPitem."PARENT_CLAIM_REFERENCE"= :LT_CLAIM_REFERENCE;
+		 END IF;
+		 
+		 IF RECORD_COUNT(:LT_APP_STRU_temp) <> 0 THEN
+				:LT_CLAIM_TABLE.(CLAIM_CODE).UPDATE((:LT_APP_STRU_temp.CLAIM_CODE[1]),IDX);
+		 END IF;
+		 
+		 END FOR;
+
+		return :LT_CLAIM_TABLE;
+	
+		
+END;

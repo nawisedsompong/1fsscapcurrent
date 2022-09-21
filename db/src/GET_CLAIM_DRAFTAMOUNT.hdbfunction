@@ -1,0 +1,658 @@
+FUNCTION "GET_CLAIM_DRAFTAMOUNT" (USER_ID VARCHAR(50),
+		CLAIM_YEAR VARCHAR(12)
+	-- CLAIM_CODE_IN VARCHAR(50)
+)
+	RETURNS TABLE (
+		"EMPLOYEE_ID" NVARCHAR(50),
+    	"CLAIM_CODE"  NVARCHAR(50),
+    	"CLAIM_REFERENCE" NVARCHAR(100),
+    	"CLAIM_DATE" DATE,
+    	"CLAIM_CATEGORY" NVARCHAR(100),
+    	"CLAIM_AMOUNT"  DECIMAL(10,2),
+    	"SUBMITTED_BY" NVARCHAR(50),
+    	"CATEGORY_CODE" NVARCHAR(50),
+    	"BEHALF_FLAG" NVARCHAR(10),
+    	"CLAIM_STATUS" NVARCHAR(50),
+    	"CONSULTATION_FEE" DECIMAL(10,2),
+    	"OTHER_COST" DECIMAL(10,2),
+    	"ENTITLEMENT" NVARCHAR(30),
+    	"DESCRIPTION" NVARCHAR(50),
+    	"WARD_CHARGES" DECIMAL(10,2),
+    	"HOSPITALIZATION_FEES" DECIMAL(10,2)
+		 )         
+			LANGUAGE SQLSCRIPT 
+       SQL SECURITY INVOKER
+       AS
+	BEGIN
+	
+	DECLARE IDX INT;
+	DECLARE MAXIDX INT;
+	DECLARE lv_index INT;
+	DECLARE CLAIM_CATEGORY_VALUE VARCHAR(50);
+
+	-- declare LT_APP_STRU_TABLE_TEMP TABLE (
+	-- 	"USERID" NVARCHAR(100),
+ --   	"MANAGER"  NVARCHAR (50),
+ --   	"ADMIN" NVARCHAR(50)
+	-- 	 );
+		 
+		 --:LT_APP_STRU_TABLE_TEMP.INSERT(('','',''));
+		 
+		--  IF :CLAIM_CODE_IN <> 'WRC' and :CLAIM_CODE_IN <> 'WRC_HR' and :CLAIM_CODE_IN <> 'TC' and :CLAIM_CODE_IN <> 'SP' 
+		--  and :CLAIM_CODE_IN <> 'COV' THEN
+		--  	CLAIM_CATEGORY_ID_table = SELECT TOP 1
+  --  							claimcategory."CLAIM_CODE" ,
+  --  							claimcategory."CATEGORY_CODE"
+		-- 				FROM "BENEFIT_COMPANY_CLAIM_CATEGORY" claimcategory
+		-- 				WHERE claimcategory."CLAIM_CODE" = :CLAIM_CODE_IN;
+						
+		--  CLAIM_CATEGORY_VALUE=:CLAIM_CATEGORY_ID_table.CATEGORY_CODE[1];
+		--  ELSE
+		--  CLAIM_CATEGORY_VALUE = :CLAIM_CODE_IN;
+		--  END IF;
+		 
+		--  IF :CLAIM_CATEGORY_VALUE = 'MC' THEN
+  --  					LT_APP_STRU_TABLE = SELECT MCCLAIM."EMPLOYEE_ID" ,
+  --  							MCCLAIM."CLAIM_CODE" ,
+  --  							MCCLAIM."CLAIM_REFERENCE",
+  --  							MCCLAIM."CLAIM_DATE" ,
+  --  							MCCLAIM."CLAIM_CATEGORY",
+  --  							MCCLAIM."CLAIM_AMOUNT",
+  --  							MCCLAIM."SUBMITTED_BY",
+  --  							MCCLAIM."CATEGORY_CODE",
+  --  							MCCLAIM."BEHALF_FLAG",
+  --  							MCCLAIM."CLAIM_STATUS",
+  --  							MCCLAIM.CONSULTATION_FEE,
+  --  							MCCLAIM.OTHER_COST
+		-- 				FROM "BENEFIT_MEDICAL_CLAIM" MCCLAIM
+		-- 				WHERE MCCLAIM."EMPLOYEE_ID" = :USER_ID and MCCLAIM."CLAIM_CODE" = :CLAIM_CODE_IN ;
+		-- 			END IF;
+		-- IF :CLAIM_CATEGORY_VALUE = 'WRC' THEN
+  --  					LT_APP_STRU_TABLE = SELECT WRC."EMPLOYEE_ID" ,
+  --  							WRC."CLAIM_CATEGORY" as "CLAIM_CODE" ,
+  --  							WRC."CLAIM_REFERENCE",
+  --  							WRC."CLAIM_DATE" ,
+  --  							WRC."CLAIM_CATEGORY",
+  --  							WRC."CLAIM_AMOUNT",
+  --  							WRC."SUBMITTED_BY",
+  --  							WRC."CATEGORY_CODE",
+  --  							WRC."BEHALF_FLAG",
+  --  							WRC."CLAIM_STATUS",
+  --  							'0.00' as "CONSULTATION_FEE",
+  --  							'0.00' as "OTHER_COST"
+		-- 				FROM "BENEFIT_WRC_MASTER_CLAIM" WRC
+		-- 				WHERE WRC."EMPLOYEE_ID" = :USER_ID  ;
+		-- 			END IF;
+		-- IF :CLAIM_CATEGORY_VALUE = 'TIM' THEN
+  --  					LT_APP_STRU_TABLE = SELECT OVERTIME."EMPLOYEE_ID" ,
+  --  							OVERTIME."CLAIM_CODE" ,
+  --  							OVERTIME."CLAIM_REFERENCE",
+  --  							OVERTIME."CLAIM_DATE" ,
+  --  							OVERTIME."CLAIM_CATEGORY",
+  --  							OVERTIME."CLAIM_AMOUNT",
+  --  							OVERTIME."SUBMITTED_BY",
+  --  							OVERTIME."CATEGORY_CODE",
+  --  							OVERTIME."BEHALF_FLAG",
+  --  							OVERTIME."CLAIM_STATUS",
+  --  							'0.00' as "CONSULTATION_FEE",
+  --  							'0.00' as "OTHER_COST"
+		-- 				FROM "BENEFIT_OVERTIME_CLAIM" OVERTIME
+		-- 				WHERE OVERTIME."EMPLOYEE_ID" = :USER_ID and OVERTIME."CLAIM_CODE" = :CLAIM_CODE_IN  ;
+		-- 			END IF;
+		-- IF :CLAIM_CATEGORY_VALUE = 'WRC_HR' THEN
+  --  					LT_APP_STRU_TABLE = SELECT WRC."EMPLOYEE_ID" ,
+  --  							WRC."CLAIM_CATEGORY" as "CLAIM_CODE" ,
+  --  							WRC."CLAIM_REFERENCE",
+  --  							WRC."CLAIM_DATE" ,
+  --  							WRC."CLAIM_CATEGORY",
+  --  							WRC."CLAIM_AMOUNT",
+  --  							WRC."SUBMITTED_BY",
+  --  							WRC."CATEGORY_CODE",
+  --  							WRC."BEHALF_FLAG",
+  --  							WRC."CLAIM_STATUS",
+  --  							'0.00' as "CONSULTATION_FEE",
+  --  							'0.00' as "OTHER_COST"
+		-- 				FROM "BENEFIT_WRC_HR_MASTER_CLAIM" WRC
+		-- 				WHERE WRC."EMPLOYEE_ID" = :USER_ID  ;
+		-- 			END IF;
+		-- IF :CLAIM_CATEGORY_VALUE = 'AHP' OR :CLAIM_CATEGORY_VALUE='WIC'
+		-- 			OR :CLAIM_CATEGORY_VALUE='LIC'
+		-- 			OR :CLAIM_CATEGORY_VALUE='MSR'THEN
+  --  					LT_APP_STRU_TABLE = SELECT AHP."EMPLOYEE_ID" ,
+  --  							AHP."CLAIM_CODE" ,
+  --  							AHP."CLAIM_REFERENCE",
+  --  							AHP."CLAIM_DATE" ,
+  --  							AHP."CLAIM_CATEGORY",
+  --  							AHP."CLAIM_AMOUNT",
+  --  							AHP."SUBMITTED_BY",
+  --  							AHP."CATEGORY_CODE",
+  --  							AHP."BEHALF_FLAG",
+  --  							AHP."CLAIM_STATUS",
+  --  							'0.00' as "CONSULTATION_FEE",
+  --  							'0.00' as "OTHER_COST"
+		-- 				FROM "BENEFIT_AHP_LIC_MS_WIC_CLAIM" AHP
+		-- 				WHERE AHP."EMPLOYEE_ID" = :USER_ID  and AHP."CLAIM_CODE" = :CLAIM_CODE_IN;
+		-- 			END IF;
+		-- IF :CLAIM_CATEGORY_VALUE = 'SP' THEN
+  --  					LT_APP_STRU_TABLE = SELECT SP."EMPLOYEE_ID" ,
+  --  							SP."CLAIM_CATEGORY" as "CLAIM_CODE" ,
+  --  							SP."CLAIM_REFERENCE",
+  --  							SP."CLAIM_DATE" ,
+  --  							SP."CLAIM_CATEGORY",
+  --  							SP."CLAIM_AMOUNT",
+  --  							SP."SUBMITTED_BY",
+  --  							SP."CATEGORY_CODE",
+  --  							SP."BEHALF_FLAG",
+  --  							SP."CLAIM_STATUS",
+  --  							'0.00' as "CONSULTATION_FEE",
+  --  							'0.00' as "OTHER_COST"
+		-- 				FROM "BENEFIT_SP_MASTER_CLAIM" SP
+		-- 				WHERE SP."EMPLOYEE_ID" = :USER_ID  ;
+		-- 			END IF;
+		-- IF :CLAIM_CATEGORY_VALUE = 'PTF' OR :CLAIM_CATEGORY_VALUE = 'CLS' THEN
+  --  					LT_APP_STRU_TABLE = SELECT PTF."EMPLOYEE_ID" ,
+  --  							PTF."CLAIM_CODE" ,
+  --  							PTF."CLAIM_REFERENCE",
+  --  							PTF."CLAIM_DATE" ,
+  --  							PTF."CLAIM_CATEGORY",
+  --  							PTF."CLAIM_AMOUNT",
+  --  							PTF."SUBMITTED_BY",
+  --  							PTF."CATEGORY_CODE",
+  --  							PTF."BEHALF_FLAG",
+  --  							PTF."CLAIM_STATUS",
+  --  							'0.00' as "CONSULTATION_FEE",
+  --  							'0.00' as "OTHER_COST"
+		-- 				FROM "BENEFIT_PTF_ACL_BCL_CLAIM" PTF
+		-- 				WHERE PTF."EMPLOYEE_ID" = :USER_ID and  PTF."CLAIM_CODE" = :CLAIM_CODE_IN;
+		-- 			END IF;
+		-- IF :CLAIM_CATEGORY_VALUE = 'PC' THEN
+  --  					LT_APP_STRU_TABLE = SELECT PC."EMPLOYEE_ID" ,
+  --  							PC."CLAIM_CODE" ,
+  --  							PC."CLAIM_REFERENCE",
+  --  							PC."CLAIM_DATE" ,
+  --  							PC."CLAIM_CATEGORY",
+  --  							PC."CLAIM_AMOUNT",
+  --  							PC."SUBMITTED_BY",
+  --  							PC."CATEGORY_CODE",
+  --  							PC."BEHALF_FLAG",
+  --  							PC."CLAIM_STATUS",
+  --  							'0.00' as "CONSULTATION_FEE",
+  --  							'0.00' as "OTHER_COST"
+		-- 				FROM "BENEFIT_PC_CLAIM" PC
+		-- 				WHERE PC."EMPLOYEE_ID" = :USER_ID  ;
+		-- 			END IF;
+		-- IF :CLAIM_CATEGORY_VALUE = 'COV' THEN
+  --  					LT_APP_STRU_TABLE = SELECT COV."EMPLOYEE_ID" ,
+  --  							COV."CLAIM_CATEGORY" as "CLAIM_CODE" ,
+  --  							COV."CLAIM_REFERENCE",
+  --  							COV."CLAIM_DATE" ,
+  --  							COV."CLAIM_CATEGORY",
+  --  							COV."CLAIM_AMOUNT",
+  --  							COV."SUBMITTED_BY",
+  --  							COV."CATEGORY_CODE",
+  --  							COV."BEHALF_FLAG",
+  --  							COV."CLAIM_STATUS",
+  --  							'0.00' as "CONSULTATION_FEE",
+  --  							'0.00' as "OTHER_COST"
+		-- 				FROM "BENEFIT_COV_MASTER_CLAIM" COV
+		-- 				WHERE COV."EMPLOYEE_ID" = :USER_ID  ;
+		-- 			END IF;
+		-- IF :CLAIM_CATEGORY_VALUE = 'TC' THEN
+  --  					LT_APP_STRU_TABLE = SELECT TC."EMPLOYEE_ID" ,
+  --  							TC."CLAIM_CATEGORY" as "CLAIM_CODE" ,
+  --  							TC."CLAIM_REFERENCE",
+  --  							TC."CLAIM_DATE" ,
+  --  							TC."CLAIM_CATEGORY",
+  --  							TC."CLAIM_AMOUNT",
+  --  							TC."SUBMITTED_BY",
+  --  							TC."CATEGORY_CODE",
+  --  							TC."BEHALF_FLAG",
+  --  							TC."CLAIM_STATUS",
+  --  							'0.00' as "CONSULTATION_FEE",
+  --  							'0.00' as "OTHER_COST"
+		-- 				FROM "BENEFIT_TC_MASTER_CLAIM" TC
+		-- 				WHERE TC."EMPLOYEE_ID" = :USER_ID  ;
+		-- 			END IF;
+					
+				-- IF :CLAIM_CATEGORY_VALUE = 'ALL'  THEN
+					LT_APP_STRU_TABLE = SELECT 
+										   CASE 
+			    							WHEN CLAIM."CLAIM_AMOUNT" IS NULL THEN :USER_ID
+			    							ELSE CLAIM."EMPLOYEE_ID"
+			    							END as "EMPLOYEE_ID",
+											CODELIST."CLAIM_CODE",
+											CLAIM."CLAIM_REFERENCE",
+			    							CASE WHEN CLAIM."CLAIM_DATE"  IS NULL THEN :CLAIM_YEAR
+			    							ELSE CLAIM."CLAIM_DATE" 
+			    							END as "CLAIM_DATE",
+			    							CLAIM."CLAIM_CATEGORY",
+			    							CASE 
+			    							WHEN CLAIM."CLAIM_AMOUNT" IS NULL THEN '0.00'
+			    							ELSE CLAIM."CLAIM_AMOUNT"
+			    							END as "CLAIM_AMOUNT",
+			    							CLAIM."SUBMITTED_BY",
+			    							CODELIST."CATEGORY_CODE",
+			    							CLAIM."BEHALF_FLAG",
+			    							CLAIM."CLAIM_STATUS",
+			    							-- CLAIM."CLAIM_DATE",
+			    							-- (YEAR FROM TO_DATE (CLAIM."CLAIM_DATE", 'YYYY-MM-DD')) as "CLAIM_YEAR",
+			    							CASE 
+			    							WHEN CLAIM."CONSULTATION_FEE" IS NULL THEN '0.00'
+			    							ELSE CLAIM."CONSULTATION_FEE"
+			    							END as "CONSULTATION_FEE",
+			    							CASE 
+			    							WHEN CLAIM."OTHER_COST" IS NULL THEN '0.00'
+			    							ELSE CLAIM."OTHER_COST"
+			    							END as "OTHER_COST",
+			    							CASE 
+			    							WHEN ELIG."ENTITLEMENT" IS NULL THEN '0.00'
+			    							ELSE ELIG."ENTITLEMENT"
+			    							END as "ENTITLEMENT",
+			    								--added recently
+			    							CODELIST."DESCRIPTION",
+			    							CASE 
+			    							WHEN CLAIM."WARD_CHARGES" IS NULL THEN '0.00'
+			    							ELSE CLAIM."WARD_CHARGES"
+			    							END as "WARD_CHARGES",
+			    							CASE 
+			    							WHEN CLAIM."HOSPITALIZATION_FEES" IS NULL THEN '0.00'
+			    							ELSE CLAIM."HOSPITALIZATION_FEES"
+			    							END as "HOSPITALIZATION_FEES"
+										FROM (
+											SELECT 
+											CASE 
+											WHEN  "CATEGORY_CODE" <> 'WRC'
+									AND "CATEGORY_CODE" <> 'WRC_HR' AND "CATEGORY_CODE" <>'TC'
+                                    -- Since SP is exception it has Lineitem and Entitlement and has only one Cliam code for each of the Master
+									-- AND "CATEGORY_CODE" <>'SP' AND "CATEGORY_CODE" <>'SP1' AND "CATEGORY_CODE" <>'SP2'
+                                    -- AND "CATEGORY_CODE" <>'SP3' 
+                                    AND "CATEGORY_CODE" <> 'COV' AND "CATEGORY_CODE" <> 'SDFC' 
+                                    AND "CATEGORY_CODE" <> 'SDFR' AND "CATEGORY_CODE" <> 'CPC'
+                                    AND "CATEGORY_CODE" <> 'OC' AND "CATEGORY_CODE" <> 'PAY_UP'
+									THEN "CLAIM_CODE"
+									ELSE "CATEGORY_CODE"
+									END as "CLAIM_CODE",
+											"CATEGORY_CODE",
+											"DESCRIPTION"
+								from
+									(SELECT * FROM "BENEFIT_COMPANY_CLAIM_CATEGORY" 
+									WHERE COMPANY in ('MOHH','MOHHSCH') AND "CATEGORY_CODE" != 'WRC'
+									AND "CATEGORY_CODE" != 'WRC_HR' AND "CATEGORY_CODE" != 'TC'
+									AND "CATEGORY_CODE" != 'SP' AND "CATEGORY_CODE" != 'SP1' AND "CATEGORY_CODE" != 'SP2'
+                                    AND "CATEGORY_CODE" != 'SP3' AND "CATEGORY_CODE" != 'COV'
+                                    AND "CATEGORY_CODE" != 'SDFC' AND "CATEGORY_CODE" != 'SDFR'
+                                    AND "CATEGORY_CODE" != 'CPC' AND "CATEGORY_CODE" != 'OC' AND "CATEGORY_CODE" != 'PAY_UP'
+									UNION
+									SELECT TOP 1 * FROM "BENEFIT_COMPANY_CLAIM_CATEGORY" 
+									WHERE COMPANY ='MOHH' AND "CATEGORY_CODE" = 'WRC'
+									UNION
+									SELECT TOP 1 * FROM "BENEFIT_COMPANY_CLAIM_CATEGORY" 
+									WHERE COMPANY ='MOHH' AND "CATEGORY_CODE" = 'WRC_HR'
+									UNION
+									SELECT TOP 1 * FROM "BENEFIT_COMPANY_CLAIM_CATEGORY" 
+									WHERE COMPANY ='MOHH' AND "CATEGORY_CODE" = 'TC'
+									UNION
+									SELECT TOP 1 * FROM "BENEFIT_COMPANY_CLAIM_CATEGORY" 
+									WHERE COMPANY ='MOHH' AND "CATEGORY_CODE" = 'SP'
+									UNION 
+                                    SELECT TOP 1 * FROM "BENEFIT_COMPANY_CLAIM_CATEGORY" 
+									WHERE COMPANY ='MOHH' AND "CATEGORY_CODE" = 'SP1'
+									UNION 
+                                    SELECT TOP 1 * FROM "BENEFIT_COMPANY_CLAIM_CATEGORY" 
+									WHERE COMPANY ='MOHH' AND "CATEGORY_CODE" = 'SP2'
+									UNION 
+                                    SELECT TOP 1 * FROM "BENEFIT_COMPANY_CLAIM_CATEGORY" 
+									WHERE COMPANY ='MOHH' AND "CATEGORY_CODE" = 'SP3'
+									UNION 
+									SELECT TOP 1 * FROM "BENEFIT_COMPANY_CLAIM_CATEGORY" 
+									WHERE COMPANY ='MOHH' AND "CATEGORY_CODE" = 'COV'
+									UNION 
+									SELECT TOP 1 * FROM "BENEFIT_COMPANY_CLAIM_CATEGORY" 
+									WHERE COMPANY ='MOHHSCH' AND "CATEGORY_CODE" = 'SDFC'
+									UNION 
+									SELECT TOP 1 * FROM "BENEFIT_COMPANY_CLAIM_CATEGORY" 
+									WHERE COMPANY ='MOHHSCH' AND "CATEGORY_CODE" = 'SDFR'
+									UNION 
+									SELECT TOP 1 * FROM "BENEFIT_COMPANY_CLAIM_CATEGORY" 
+									WHERE COMPANY ='MOHHSCH' AND "CATEGORY_CODE" = 'CPC'
+									UNION 
+									SELECT TOP 1 * FROM "BENEFIT_COMPANY_CLAIM_CATEGORY" 
+									WHERE COMPANY ='MOHHSCH' AND "CATEGORY_CODE" = 'OC'
+									UNION 
+									SELECT TOP 1 * FROM "BENEFIT_COMPANY_CLAIM_CATEGORY" 
+									WHERE COMPANY ='MOHHSCH' AND "CATEGORY_CODE" = 'PAY_UP'
+									))CODELIST 
+									LEFT  JOIN SF_EMPLOYEEELIGIBILITY(EmpID=>:USER_ID) ELIG
+									ON ELIG."CLAIM_CODE" = CODELIST."CLAIM_CODE"
+									left  join	
+									(	SELECT COV."EMPLOYEE_ID" ,
+			    							COV."CLAIM_CATEGORY" as "CLAIM_CODE" ,
+			    							COV."CLAIM_REFERENCE",
+			    							COV."CLAIM_DATE" ,
+			    							COV."CLAIM_CATEGORY",
+			    							COV."CLAIM_AMOUNT",
+			    							COV."SUBMITTED_BY",
+			    							COV."CATEGORY_CODE",
+			    							COV."BEHALF_FLAG",
+			    							COV."CLAIM_STATUS",
+			    							'0.00' as "CONSULTATION_FEE",
+			    							'0.00' as "OTHER_COST",
+			    							'0.00' as "WARD_CHARGES",
+    										'0.00' as "HOSPITALIZATION_FEES"
+									FROM "BENEFIT_COV_MASTER_CLAIM" COV
+									WHERE COV."EMPLOYEE_ID" = :USER_ID 
+									and  EXTRACT_YEAR(COV."CLAIM_DATE") = :CLAIM_YEAR
+									UNION 
+									SELECT TC."EMPLOYEE_ID" ,
+			    							TC."CLAIM_CATEGORY" as "CLAIM_CODE" ,
+			    							TC."CLAIM_REFERENCE",
+			    							TC."CLAIM_DATE" ,
+			    							TC."CLAIM_CATEGORY",
+			    							TC."CLAIM_AMOUNT",
+			    							TC."SUBMITTED_BY",
+			    							TC."CATEGORY_CODE",
+			    							TC."BEHALF_FLAG",
+			    							TC."CLAIM_STATUS",
+			    							'0.00' as "CONSULTATION_FEE",
+			    							'0.00' as "OTHER_COST",
+			    							'0.00' as "WARD_CHARGES",
+    										'0.00' as "HOSPITALIZATION_FEES"
+									FROM "BENEFIT_TC_MASTER_CLAIM" TC
+									WHERE TC."EMPLOYEE_ID" = :USER_ID
+									and  EXTRACT_YEAR(TC."CLAIM_DATE") = :CLAIM_YEAR
+									UNION
+									SELECT PC."EMPLOYEE_ID" ,
+			    							PC."CLAIM_CODE" ,
+			    							PC."CLAIM_REFERENCE",
+			    							PC."CLAIM_DATE" ,
+			    							PC."CLAIM_CATEGORY",
+			    							PC."CLAIM_AMOUNT",
+			    							PC."SUBMITTED_BY",
+			    							PC."CATEGORY_CODE",
+			    							PC."BEHALF_FLAG",
+			    							PC."CLAIM_STATUS",
+			    							'0.00' as "CONSULTATION_FEE",
+			    							'0.00' as "OTHER_COST",
+			    							'0.00' as "WARD_CHARGES",
+    										'0.00' as "HOSPITALIZATION_FEES"
+									FROM "BENEFIT_PC_CLAIM" PC
+									WHERE PC."EMPLOYEE_ID" = :USER_ID
+									and  EXTRACT_YEAR(PC."CLAIM_DATE") = :CLAIM_YEAR
+									UNION
+									SELECT PTF."EMPLOYEE_ID" ,
+			    							PTF."CLAIM_CODE" ,
+			    							PTF."CLAIM_REFERENCE",
+			    							PTF."CLAIM_DATE" ,
+			    							PTF."CLAIM_CATEGORY",
+			    							PTF."CLAIM_AMOUNT",
+			    							PTF."SUBMITTED_BY",
+			    							PTF."CATEGORY_CODE",
+			    							PTF."BEHALF_FLAG",
+			    							PTF."CLAIM_STATUS",
+			    							'0.00' as "CONSULTATION_FEE",
+			    							'0.00' as "OTHER_COST",
+			    							'0.00' as "WARD_CHARGES",
+    										'0.00' as "HOSPITALIZATION_FEES"
+									FROM "BENEFIT_PTF_ACL_BCL_CLAIM" PTF
+									WHERE PTF."EMPLOYEE_ID" = :USER_ID 
+									and  EXTRACT_YEAR(PTF."CLAIM_DATE") = :CLAIM_YEAR
+									UNION 
+									SELECT SP."EMPLOYEE_ID" ,
+			    							SP."CLAIM_CATEGORY" as "CLAIM_CODE" ,
+			    							SP."CLAIM_REFERENCE",
+			    							SP."CLAIM_DATE" ,
+			    							SP."CLAIM_CATEGORY",
+			    							SP."CLAIM_AMOUNT",
+			    							SP."SUBMITTED_BY",
+			    							SP."CATEGORY_CODE",
+			    							SP."BEHALF_FLAG",
+			    							SP."CLAIM_STATUS",
+			    							'0.00' as "CONSULTATION_FEE",
+			    							'0.00' as "OTHER_COST",
+			    							'0.00' as "WARD_CHARGES",
+    										'0.00' as "HOSPITALIZATION_FEES"
+									FROM "BENEFIT_SP_MASTER_CLAIM" SP
+									WHERE SP."EMPLOYEE_ID" = :USER_ID 
+									and  EXTRACT_YEAR(SP."CLAIM_DATE") = :CLAIM_YEAR
+                                    UNION
+                                    SELECT SP."EMPLOYEE_ID" ,
+			    							SP."CLAIM_CATEGORY" as "CLAIM_CODE" ,
+			    							SP."CLAIM_REFERENCE",
+			    							SP."CLAIM_DATE" ,
+			    							SP."CLAIM_CATEGORY",
+			    							SP."CLAIM_AMOUNT",
+			    							SP."SUBMITTED_BY",
+			    							SP."CATEGORY_CODE",
+			    							SP."BEHALF_FLAG",
+			    							SP."CLAIM_STATUS",
+			    							'0.00' as "CONSULTATION_FEE",
+			    							'0.00' as "OTHER_COST",
+			    							'0.00' as "WARD_CHARGES",
+    										'0.00' as "HOSPITALIZATION_FEES"
+									FROM "BENEFIT_SP1_MASTER_CLAIM" SP
+									WHERE SP."EMPLOYEE_ID" = :USER_ID 
+									and  EXTRACT_YEAR(SP."CLAIM_DATE") = :CLAIM_YEAR
+                                    UNION
+                                    SELECT SP."EMPLOYEE_ID" ,
+			    							SP."CLAIM_CATEGORY" as "CLAIM_CODE" ,
+			    							SP."CLAIM_REFERENCE",
+			    							SP."CLAIM_DATE" ,
+			    							SP."CLAIM_CATEGORY",
+			    							SP."CLAIM_AMOUNT",
+			    							SP."SUBMITTED_BY",
+			    							SP."CATEGORY_CODE",
+			    							SP."BEHALF_FLAG",
+			    							SP."CLAIM_STATUS",
+			    							'0.00' as "CONSULTATION_FEE",
+			    							'0.00' as "OTHER_COST",
+			    							'0.00' as "WARD_CHARGES",
+    										'0.00' as "HOSPITALIZATION_FEES"
+									FROM "BENEFIT_SP2_MASTER_CLAIM" SP
+									WHERE SP."EMPLOYEE_ID" = :USER_ID
+									and  EXTRACT_YEAR(SP."CLAIM_DATE") = :CLAIM_YEAR
+                                    UNION
+                                    SELECT SP."EMPLOYEE_ID" ,
+			    							SP."CLAIM_CATEGORY" as "CLAIM_CODE" ,
+			    							SP."CLAIM_REFERENCE",
+			    							SP."CLAIM_DATE" ,
+			    							SP."CLAIM_CATEGORY",
+			    							SP."CLAIM_AMOUNT",
+			    							SP."SUBMITTED_BY",
+			    							SP."CATEGORY_CODE",
+			    							SP."BEHALF_FLAG",
+			    							SP."CLAIM_STATUS",
+			    							'0.00' as "CONSULTATION_FEE",
+			    							'0.00' as "OTHER_COST",
+			    							'0.00' as "WARD_CHARGES",
+    										'0.00' as "HOSPITALIZATION_FEES"
+									FROM "BENEFIT_SP3_MASTER_CLAIM" SP
+									WHERE SP."EMPLOYEE_ID" = :USER_ID    
+									and  EXTRACT_YEAR(SP."CLAIM_DATE") = :CLAIM_YEAR
+									UNION
+									SELECT AHP."EMPLOYEE_ID" ,
+			    							AHP."CLAIM_CODE" ,
+			    							AHP."CLAIM_REFERENCE",
+			    							AHP."CLAIM_DATE" ,
+			    							AHP."CLAIM_CATEGORY",
+			    							AHP."CLAIM_AMOUNT",
+			    							AHP."SUBMITTED_BY",
+			    							AHP."CATEGORY_CODE",
+			    							AHP."BEHALF_FLAG",
+			    							AHP."CLAIM_STATUS",
+			    							'0.00' as "CONSULTATION_FEE",
+			    							'0.00' as "OTHER_COST",
+			    							'0.00' as "WARD_CHARGES",
+    										'0.00' as "HOSPITALIZATION_FEES"
+									FROM "BENEFIT_AHP_LIC_MS_WIC_CLAIM" AHP
+									WHERE AHP."EMPLOYEE_ID" = :USER_ID
+									and  EXTRACT_YEAR(AHP."CLAIM_DATE") = :CLAIM_YEAR
+									UNION
+									SELECT WRC."EMPLOYEE_ID" ,
+			    							WRC."CLAIM_CATEGORY" as "CLAIM_CODE" ,
+			    							WRC."CLAIM_REFERENCE",
+			    							WRC."CLAIM_DATE" ,
+			    							WRC."CLAIM_CATEGORY",
+			    							WRC."CLAIM_AMOUNT",
+			    							WRC."SUBMITTED_BY",
+			    							WRC."CATEGORY_CODE",
+			    							WRC."BEHALF_FLAG",
+			    							WRC."CLAIM_STATUS",
+			    							'0.00' as "CONSULTATION_FEE",
+			    							'0.00' as "OTHER_COST",
+			    							'0.00' as "WARD_CHARGES",
+    										'0.00' as "HOSPITALIZATION_FEES"
+									FROM "BENEFIT_WRC_HR_MASTER_CLAIM" WRC
+									WHERE WRC."EMPLOYEE_ID" = :USER_ID 
+									and  EXTRACT_YEAR(WRC."CLAIM_DATE") = :CLAIM_YEAR
+									UNION
+									SELECT OVERTIME."EMPLOYEE_ID" ,
+			    							OVERTIME."CLAIM_CODE" ,
+			    							OVERTIME."CLAIM_REFERENCE",
+			    							OVERTIME."CLAIM_DATE" ,
+			    							OVERTIME."CLAIM_CATEGORY",
+			    							OVERTIME."CLAIM_AMOUNT",
+			    							OVERTIME."SUBMITTED_BY",
+			    							OVERTIME."CATEGORY_CODE",
+			    							OVERTIME."BEHALF_FLAG",
+			    							OVERTIME."CLAIM_STATUS",
+			    							'0.00' as "CONSULTATION_FEE",
+			    							'0.00' as "OTHER_COST",
+			    							'0.00' as "WARD_CHARGES",
+    										'0.00' as "HOSPITALIZATION_FEES"
+									FROM "BENEFIT_OVERTIME_CLAIM" OVERTIME
+									WHERE OVERTIME."EMPLOYEE_ID" = :USER_ID 
+									and  EXTRACT_YEAR(OVERTIME."CLAIM_DATE") = :CLAIM_YEAR
+									union
+									SELECT WRC."EMPLOYEE_ID" ,
+			    							WRC."CLAIM_CATEGORY" as "CLAIM_CODE" ,
+			    							WRC."CLAIM_REFERENCE",
+			    							WRC."CLAIM_DATE" ,
+			    							WRC."CLAIM_CATEGORY",
+			    							WRC."CLAIM_AMOUNT",
+			    							WRC."SUBMITTED_BY",
+			    							WRC."CATEGORY_CODE",
+			    							WRC."BEHALF_FLAG",
+			    							WRC."CLAIM_STATUS",
+			    							'0.00' as "CONSULTATION_FEE",
+			    							'0.00' as "OTHER_COST",
+			    							'0.00' as "WARD_CHARGES",
+    										'0.00' as "HOSPITALIZATION_FEES"
+									FROM "BENEFIT_WRC_MASTER_CLAIM" WRC
+									WHERE WRC."EMPLOYEE_ID" = :USER_ID
+									and  EXTRACT_YEAR(WRC."CLAIM_DATE") = :CLAIM_YEAR
+									union
+									SELECT MCCLAIM."EMPLOYEE_ID" ,
+			    							MCCLAIM."CLAIM_CODE" ,
+			    							MCCLAIM."CLAIM_REFERENCE",
+			    							MCCLAIM."CLAIM_DATE" ,
+			    							MCCLAIM."CLAIM_CATEGORY",
+			    							MCCLAIM."CLAIM_AMOUNT",
+			    							MCCLAIM."SUBMITTED_BY",
+			    							MCCLAIM."CATEGORY_CODE",
+			    							MCCLAIM."BEHALF_FLAG",
+			    							MCCLAIM."CLAIM_STATUS",
+			    							MCCLAIM.CONSULTATION_FEE,
+			    							MCCLAIM.OTHER_COST,
+			    							MCCLAIM.WARD_CHARGES,
+    										MCCLAIM.HOSPITALIZATION_FEES
+									FROM "BENEFIT_MEDICAL_CLAIM" MCCLAIM
+									WHERE MCCLAIM."EMPLOYEE_ID" = :USER_ID
+									and  EXTRACT_YEAR(MCCLAIM."CLAIM_DATE") = :CLAIM_YEAR
+									union
+									SELECT SDFC."EMPLOYEE_ID" ,
+			    							SDFC."CLAIM_CATEGORY" as "CLAIM_CODE" ,
+			    							SDFC."CLAIM_REFERENCE",
+			    							SDFC."CLAIM_DATE" ,
+			    							SDFC."CLAIM_CATEGORY",
+			    							SDFC."CLAIM_AMOUNT",
+			    							SDFC."SUBMITTED_BY",
+			    							SDFC."CATEGORY_CODE",
+			    							SDFC."BEHALF_FLAG",
+			    							SDFC."CLAIM_STATUS",
+			    							'0.00' as "CONSULTATION_FEE",
+			    							'0.00' as "OTHER_COST",
+			    							'0.00' as "WARD_CHARGES",
+    										'0.00' as "HOSPITALIZATION_FEES"
+									FROM "BENEFIT_SDFC_MASTER_CLAIM" SDFC
+									WHERE SDFC."EMPLOYEE_ID" = :USER_ID
+									and  EXTRACT_YEAR(SDFC."CLAIM_DATE") = :CLAIM_YEAR
+									union
+									SELECT SDFR."EMPLOYEE_ID" ,
+			    							SDFR."CLAIM_CATEGORY" as "CLAIM_CODE" ,
+			    							SDFR."CLAIM_REFERENCE",
+			    							SDFR."CLAIM_DATE" ,
+			    							SDFR."CLAIM_CATEGORY",
+			    							SDFR."CLAIM_AMOUNT",
+			    							SDFR."SUBMITTED_BY",
+			    							SDFR."CATEGORY_CODE",
+			    							SDFR."BEHALF_FLAG",
+			    							SDFR."CLAIM_STATUS",
+			    							'0.00' as "CONSULTATION_FEE",
+			    							'0.00' as "OTHER_COST",
+			    							'0.00' as "WARD_CHARGES",
+    										'0.00' as "HOSPITALIZATION_FEES"
+									FROM "BENEFIT_SDFR_MASTER_CLAIM" SDFR
+									WHERE SDFR."EMPLOYEE_ID" = :USER_ID
+									and  EXTRACT_YEAR(SDFR."CLAIM_DATE") = :CLAIM_YEAR
+									union
+									SELECT CPC."EMPLOYEE_ID" ,
+			    							CPC."CLAIM_CATEGORY" as "CLAIM_CODE" ,
+			    							CPC."CLAIM_REFERENCE",
+			    							CPC."CLAIM_DATE" ,
+			    							CPC."CLAIM_CATEGORY",
+			    							CPC."CLAIM_AMOUNT",
+			    							CPC."SUBMITTED_BY",
+			    							CPC."CATEGORY_CODE",
+			    							CPC."BEHALF_FLAG",
+			    							CPC."CLAIM_STATUS",
+			    							'0.00' as "CONSULTATION_FEE",
+			    							'0.00' as "OTHER_COST",
+			    							'0.00' as "WARD_CHARGES",
+    										'0.00' as "HOSPITALIZATION_FEES"
+									FROM "BENEFIT_CPC_MASTER_CLAIM" CPC
+									WHERE CPC."EMPLOYEE_ID" = :USER_ID
+									and  EXTRACT_YEAR(CPC."CLAIM_DATE") = :CLAIM_YEAR
+									union
+									SELECT OC."EMPLOYEE_ID" ,
+			    							OC."CLAIM_CATEGORY" as "CLAIM_CODE" ,
+			    							OC."CLAIM_REFERENCE",
+			    							OC."CLAIM_DATE" ,
+			    							OC."CLAIM_CATEGORY",
+			    							OC."CLAIM_AMOUNT",
+			    							OC."SUBMITTED_BY",
+			    							OC."CATEGORY_CODE",
+			    							OC."BEHALF_FLAG",
+			    							OC."CLAIM_STATUS",
+			    							'0.00' as "CONSULTATION_FEE",
+			    							'0.00' as "OTHER_COST",
+			    							'0.00' as "WARD_CHARGES",
+    										'0.00' as "HOSPITALIZATION_FEES"
+									FROM "BENEFIT_OC_MASTER_CLAIM" OC
+									WHERE OC."EMPLOYEE_ID" = :USER_ID
+									and  EXTRACT_YEAR(OC."CLAIM_DATE") = :CLAIM_YEAR
+									union
+									SELECT PAY_UP."EMPLOYEE_ID" ,
+			    							PAY_UP."CLAIM_CATEGORY" as "CLAIM_CODE" ,
+			    							PAY_UP."CLAIM_REFERENCE",
+			    							PAY_UP."CLAIM_DATE" ,
+			    							PAY_UP."CLAIM_CATEGORY",
+			    							PAY_UP."CLAIM_AMOUNT",
+			    							PAY_UP."SUBMITTED_BY",
+			    							PAY_UP."CATEGORY_CODE",
+			    							PAY_UP."BEHALF_FLAG",
+			    							PAY_UP."CLAIM_STATUS",
+			    							'0.00' as "CONSULTATION_FEE",
+			    							'0.00' as "OTHER_COST",
+			    							'0.00' as "WARD_CHARGES",
+    										'0.00' as "HOSPITALIZATION_FEES"
+									FROM "BENEFIT_PAY_UP_MASTER_CLAIM" PAY_UP
+									WHERE PAY_UP."EMPLOYEE_ID" = :USER_ID
+									and  EXTRACT_YEAR(PAY_UP."CLAIM_DATE") = :CLAIM_YEAR
+									) CLAIM
+									ON 
+									CODELIST."CLAIM_CODE" = CLAIM."CLAIM_CODE";
+									
+	-- END IF;
+
+		return :LT_APP_STRU_TABLE;
+END;

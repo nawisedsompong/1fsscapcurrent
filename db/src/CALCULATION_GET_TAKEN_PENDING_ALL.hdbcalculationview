@@ -1,0 +1,381 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Calculation:scenario xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:Calculation="http://www.sap.com/ndb/BiModelCalculation.ecore" id="CALCULATION_GET_TAKEN_PENDING_ALL" applyPrivilegeType="NONE" dataCategory="CUBE" schemaVersion="3.0" outputViewType="Aggregation" cacheInvalidationPeriod="HOURLY" enforceSqlExecution="false">
+<descriptions defaultDescription="CALCULATION_GET_TAKEN_PENDING_ALL"/>
+<localVariables>
+  <variable id="USER_ID" parameter="true">
+    <descriptions defaultDescription=""/>
+    <variableProperties datatype="NVARCHAR" length="50" mandatory="true">
+      <valueDomain type="empty"/>
+      <selection multiLine="false" type="SingleValue"/>
+    </variableProperties>
+  </variable>
+  <variable id="CLAIM_CODE_IN" parameter="true">
+    <descriptions defaultDescription=""/>
+    <variableProperties datatype="NVARCHAR" length="50" mandatory="false" defaultValue="">
+      <valueDomain type="empty"/>
+      <selection multiLine="false" type="SingleValue"/>
+    </variableProperties>
+  </variable>
+
+  <variable id="ELIGIBILITY" parameter="true">
+    <descriptions defaultDescription=""/>
+    <variableProperties datatype="DECIMAL" length="10" scale="2" mandatory="false">
+      <valueDomain type="empty"/>
+      <selection multiLine="false" type="SingleValue"/>
+    </variableProperties>
+  </variable>
+
+  <variable id="CLAIM_YEAR" parameter="true">
+    <descriptions defaultDescription=""/>
+    <variableProperties datatype="NVARCHAR" length="13" mandatory="true">
+      <valueDomain type="empty"/>
+      <selection multiLine="false" type="SingleValue"/>
+    </variableProperties>
+  </variable>
+</localVariables>
+<variableMappings/>
+<dataSources>
+  <DataSource id="GET_CLAIM_DRAFTALL" type="TABLE_FUNCTION">
+    <resourceUri>GET_CLAIM_DRAFTALL</resourceUri>
+  </DataSource>
+  <DataSource id="Claim_Data_Filter_Aggregation$$$$GET_CLAIM_DRAFTALL$$" type="TABLE_FUNCTION">
+    <resourceUri>GET_CLAIM_DRAFTALL</resourceUri>
+  </DataSource>
+</dataSources>
+<calculationViews>
+  <calculationView xsi:type="Calculation:AggregationView" id="Claim_Data_Cal_Aggregation">
+    <viewAttributes>
+      <viewAttribute id="CLAIM_DATE"/>
+      <viewAttribute id="CLAIM_STATUS"/>
+      <viewAttribute id="EMPLOYEE_ID"/>
+      <viewAttribute id="CLAIM_REFERENCE"/>
+      <viewAttribute id="BEHALF_FLAG"/>
+      <viewAttribute id="CLAIM_CODE"/>
+      <viewAttribute id="CATEGORY_CODE"/>
+      <viewAttribute id="SUBMITTED_BY"/>
+      <viewAttribute id="CLAIM_AMOUNT" aggregationType="sum"/>
+      <viewAttribute id="CLAIM_CATEGORY"/>
+    
+      <viewAttribute id="OTHER_COST" aggregationType="sum"/>
+      <viewAttribute id="CONSULTATION_FEE" aggregationType="sum"/>
+    
+      <viewAttribute id="ENTITLEMENT"/>
+    
+      <viewAttribute id="HOSPITALIZATION_FEES" aggregationType="sum"/>
+      <viewAttribute id="WARD_CHARGES" aggregationType="sum"/>
+      <viewAttribute id="DESCRIPTION"/>
+    </viewAttributes>
+    <calculatedViewAttributes>
+      <calculatedViewAttribute id="PENDING_AMOUNT" datatype="DECIMAL" length="10" scale="2" expressionLanguage="COLUMN_ENGINE">
+        <formula>if (isNull(if(((&quot;CLAIM_STATUS&quot; != 'Approved' and &quot;CLAIM_STATUS&quot; != 'Rejected' and &quot;CLAIM_STATUS&quot; != 'Cancelled' and &quot;CLAIM_STATUS&quot; != 'Pending for Submission' and &quot;CLAIM_STATUS&quot; != 'Cancellation Pending for approval, Level 1' and &quot;CLAIM_STATUS&quot; != 'Cancellation Pending for approval, Level 2' and &quot;CLAIM_STATUS&quot; != 'Cancellation Pending for approval, Level 3' and &quot;CLAIM_STATUS&quot; != 'Cancellation Approved' )),&quot;CLAIM_AMOUNT&quot;,0.00)),0.00,(if(((&quot;CLAIM_STATUS&quot; != 'Approved' and &quot;CLAIM_STATUS&quot; != 'Rejected' and &quot;CLAIM_STATUS&quot; != 'Cancelled' and &quot;CLAIM_STATUS&quot; != 'Pending for Submission'  and &quot;CLAIM_STATUS&quot; != 'Cancellation Pending for approval, Level 1' and &quot;CLAIM_STATUS&quot; != 'Cancellation Pending for approval, Level 2' and &quot;CLAIM_STATUS&quot; != 'Cancellation Pending for approval, Level 3' and &quot;CLAIM_STATUS&quot; != 'Cancellation Approved')),&quot;CLAIM_AMOUNT&quot;,0.00)))</formula>
+      </calculatedViewAttribute>
+      <calculatedViewAttribute id="TAKEN_AMOUNT" datatype="DECIMAL" length="10" scale="2" expressionLanguage="COLUMN_ENGINE">
+        <formula>if(isNull(if(((&quot;CLAIM_STATUS&quot; = 'Approved') and not(isNull(&quot;CLAIM_AMOUNT&quot;))),&quot;CLAIM_AMOUNT&quot;,0.00)),0.00,(if(((&quot;CLAIM_STATUS&quot; = 'Approved') and not(isNull(&quot;CLAIM_AMOUNT&quot;))),&quot;CLAIM_AMOUNT&quot;,0.00)))</formula>
+      </calculatedViewAttribute>
+    
+      <calculatedViewAttribute id="YTD_CONSULT" datatype="DECIMAL" length="10" scale="2" expressionLanguage="COLUMN_ENGINE">
+    
+        <formula>if((&quot;CLAIM_STATUS&quot; != 'Approved' and isNull(&quot;CONSULTATION_FEE&quot;) ),0.00,&quot;CONSULTATION_FEE&quot;)</formula>
+    
+      </calculatedViewAttribute>
+      <calculatedViewAttribute id="YTD_OTHER" datatype="DECIMAL" length="10" scale="2" expressionLanguage="COLUMN_ENGINE">
+        <formula>if((&quot;CLAIM_STATUS&quot; != 'Approved' and isNull(&quot;OTHER_COST&quot;) ),0.00,&quot;OTHER_COST&quot;)</formula>
+      </calculatedViewAttribute>
+    
+      <calculatedViewAttribute id="YTD_WARD_CHARGE" datatype="DECIMAL" length="10" scale="2" expressionLanguage="COLUMN_ENGINE">
+    
+        <formula>if((&quot;CLAIM_STATUS&quot; != 'Approved' and isNull(&quot;WARD_CHARGES&quot;) ),0.00,&quot;WARD_CHARGES&quot;)</formula>
+    
+      </calculatedViewAttribute>
+      <calculatedViewAttribute id="YTD_HOSPITAL_FEE" datatype="DECIMAL" length="10" scale="2" expressionLanguage="COLUMN_ENGINE">
+        <formula>if((&quot;CLAIM_STATUS&quot; != 'Approved' and isNull(&quot;HOSPITALIZATION_FEES&quot;) ),0.00,&quot;HOSPITALIZATION_FEES&quot;)</formula>
+      </calculatedViewAttribute>
+    
+      <calculatedViewAttribute id="YEAR" datatype="NVARCHAR" length="13" expressionLanguage="SQL">
+    
+        <formula>EXTRACT_YEAR(&quot;CLAIM_DATE&quot;)</formula>
+    
+      </calculatedViewAttribute>
+    </calculatedViewAttributes>
+    <restrictedViewAttributes/>
+    <input node="GET_CLAIM_DRAFTALL"/>
+  </calculationView>
+  <calculationView xsi:type="Calculation:AggregationView" id="Claim_Data_Filter_Aggregation" filterExpressionLanguage="SQL">
+    <viewAttributes>
+      <viewAttribute id="CLAIM_DATE"/>
+      <viewAttribute id="CLAIM_STATUS"/>
+      <viewAttribute id="EMPLOYEE_ID"/>
+      <viewAttribute id="CLAIM_REFERENCE"/>
+      <viewAttribute id="BEHALF_FLAG"/>
+      <viewAttribute id="CLAIM_CODE"/>
+      <viewAttribute id="CATEGORY_CODE"/>
+      <viewAttribute id="SUBMITTED_BY"/>
+      <viewAttribute id="CLAIM_AMOUNT" aggregationType="sum"/>
+      <viewAttribute id="CLAIM_CATEGORY"/>
+    
+      <viewAttribute id="OTHER_COST" aggregationType="sum"/>
+      <viewAttribute id="CONSULTATION_FEE" aggregationType="sum"/>
+    
+      <viewAttribute id="ENTITLEMENT"/>
+    
+      <viewAttribute id="HOSPITALIZATION_FEES" aggregationType="sum"/>
+      <viewAttribute id="WARD_CHARGES" aggregationType="sum"/>
+      <viewAttribute id="DESCRIPTION"/>
+    
+      <viewAttribute id="DEPARMENT"/>
+      <viewAttribute id="PERSONAL_SUB_AREA"/>
+      <viewAttribute id="PERSONAL_AREA"/>
+      <viewAttribute id="PAY_GRADE"/>
+      <viewAttribute id="DIVISION"/>
+    </viewAttributes>
+    <calculatedViewAttributes/>
+    <restrictedViewAttributes/>
+    <input node="Claim_Data_Filter_Aggregation$$$$GET_CLAIM_DRAFTALL$$"/>
+    <filter>(&quot;EMPLOYEE_ID&quot; = '$$USER_ID$$' or &quot;EMPLOYEE_ID&quot; != '$$USER_ID$$' ) AND 
+(&quot;CLAIM_DATE&quot; = '$$CLAIM_YEAR$$' or &quot;EMPLOYEE_ID&quot; != '$$CLAIM_YEAR$$')</filter>
+  </calculationView>
+  <calculationView xsi:type="Calculation:JoinView" id="JoinCalculatedwithFilter" joinType="inner">
+    <viewAttributes>
+      <viewAttribute id="PENDING_AMOUNT" aggregationType="sum"/>
+      <viewAttribute id="TAKEN_AMOUNT" aggregationType="sum"/>
+      <viewAttribute id="CLAIM_DATE"/>
+      <viewAttribute id="CLAIM_STATUS"/>
+      <viewAttribute id="EMPLOYEE_ID"/>
+      <viewAttribute id="CLAIM_REFERENCE"/>
+      <viewAttribute id="BEHALF_FLAG"/>
+      <viewAttribute id="CLAIM_CODE"/>
+      <viewAttribute id="CATEGORY_CODE"/>
+      <viewAttribute id="SUBMITTED_BY"/>
+      <viewAttribute id="CLAIM_AMOUNT" aggregationType="sum"/>
+      <viewAttribute id="CLAIM_CATEGORY"/>
+      <viewAttribute id="CLAIM_CODE_1"/>
+      <viewAttribute id="EMPLOYEE_ID_1"/>
+    
+      <viewAttribute id="YTD_CONSULT" aggregationType="sum"/>
+      <viewAttribute id="YTD_OTHER" aggregationType="sum"/>
+    
+      <viewAttribute id="ENTITLEMENT"/>
+    
+      <viewAttribute id="YTD_WARD_CHARGE" aggregationType="sum"/>
+      <viewAttribute id="YTD_HOSPITAL_FEE" aggregationType="sum"/>
+      <viewAttribute id="DESCRIPTION"/>
+    
+      <viewAttribute id="YEAR"/>
+    
+      <viewAttribute id="DIVISION"/>
+      <viewAttribute id="PAY_GRADE"/>
+      <viewAttribute id="PERSONAL_AREA"/>
+      <viewAttribute id="PERSONAL_SUB_AREA"/>
+      <viewAttribute id="DEPARMENT"/>
+    </viewAttributes>
+    <calculatedViewAttributes>
+      <calculatedViewAttribute id="EMPLOYEE" datatype="NVARCHAR" length="50" expressionLanguage="SQL">
+        <formula>&quot;EMPLOYEE_ID&quot;</formula>
+      </calculatedViewAttribute>
+      <calculatedViewAttribute id="CLAIM_CODE_VALUE" datatype="NVARCHAR" length="50" expressionLanguage="COLUMN_ENGINE">
+        <formula>if(isNull(&quot;CLAIM_CODE_1&quot;),&quot;CLAIM_CODE&quot;,&quot;CLAIM_CODE&quot;)</formula>
+      </calculatedViewAttribute>
+    </calculatedViewAttributes>
+    <input node="Claim_Data_Cal_Aggregation">
+      <mapping xsi:type="Calculation:AttributeMapping" target="PENDING_AMOUNT" source="PENDING_AMOUNT"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="TAKEN_AMOUNT" source="TAKEN_AMOUNT"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="CLAIM_DATE" source="CLAIM_DATE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="CLAIM_STATUS" source="CLAIM_STATUS"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="EMPLOYEE_ID" source="EMPLOYEE_ID"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="CLAIM_REFERENCE" source="CLAIM_REFERENCE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="BEHALF_FLAG" source="BEHALF_FLAG"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="CLAIM_CODE" source="CLAIM_CODE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="CATEGORY_CODE" source="CATEGORY_CODE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="SUBMITTED_BY" source="SUBMITTED_BY"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="CLAIM_AMOUNT" source="CLAIM_AMOUNT"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="CLAIM_CATEGORY" source="CLAIM_CATEGORY"/>
+    
+      <mapping xsi:type="Calculation:AttributeMapping" target="YTD_CONSULT" source="YTD_CONSULT"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="YTD_OTHER" source="YTD_OTHER"/>
+    
+      <mapping xsi:type="Calculation:AttributeMapping" target="ENTITLEMENT" source="ENTITLEMENT"/>
+    
+      <mapping xsi:type="Calculation:AttributeMapping" target="YTD_WARD_CHARGE" source="YTD_WARD_CHARGE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="YTD_HOSPITAL_FEE" source="YTD_HOSPITAL_FEE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="DESCRIPTION" source="DESCRIPTION"/>
+    
+      <mapping xsi:type="Calculation:AttributeMapping" target="YEAR" source="YEAR"/>
+    </input>
+    <input node="Claim_Data_Filter_Aggregation">
+      <mapping xsi:type="Calculation:AttributeMapping" target="CLAIM_CODE_1" source="CLAIM_CODE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="EMPLOYEE_ID_1" source="EMPLOYEE_ID"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="DIVISION" source="DIVISION"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="PAY_GRADE" source="PAY_GRADE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="PERSONAL_AREA" source="PERSONAL_AREA"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="PERSONAL_SUB_AREA" source="PERSONAL_SUB_AREA"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="DEPARMENT" source="DEPARMENT"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="EMPLOYEE_ID" source="EMPLOYEE_ID"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="CLAIM_CODE" source="CLAIM_CODE"/>
+    </input>
+    <joinAttribute name="EMPLOYEE_ID"/>
+    <joinAttribute name="CLAIM_CODE"/>
+  </calculationView>
+  <calculationView xsi:type="Calculation:AggregationView" id="Balance_cal_Aggregation">
+    <viewAttributes>
+      <viewAttribute id="YTD_OTHER" aggregationType="sum"/>
+      <viewAttribute id="YTD_CONSULT" aggregationType="sum"/>
+      <viewAttribute id="CLAIM_CODE_VALUE"/>
+      <viewAttribute id="EMPLOYEE"/>
+      <viewAttribute id="PENDING_AMOUNT" aggregationType="sum"/>
+      <viewAttribute id="TAKEN_AMOUNT" aggregationType="sum"/>
+    
+      <viewAttribute id="ENTITLEMENT"/>
+    
+      <viewAttribute id="YTD_WARD_CHARGE" aggregationType="sum"/>
+      <viewAttribute id="YTD_HOSPITAL_FEE" aggregationType="sum"/>
+      <viewAttribute id="DESCRIPTION"/>
+    
+      <viewAttribute id="YEAR"/>
+    
+      <viewAttribute id="DEPARMENT"/>
+      <viewAttribute id="PERSONAL_SUB_AREA"/>
+      <viewAttribute id="PERSONAL_AREA"/>
+      <viewAttribute id="PAY_GRADE"/>
+      <viewAttribute id="DIVISION"/>
+    </viewAttributes>
+    <calculatedViewAttributes/>
+    <restrictedViewAttributes/>
+    <input node="JoinCalculatedwithFilter"/>
+  </calculationView>
+</calculationViews>
+<logicalModel id="Balance_cal_Aggregation">
+  <attributes>
+    <attribute id="CLAIM_CODE_VALUE" order="4" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="CLAIM_CODE_VALUE"/>
+      <keyMapping columnObjectName="Balance_cal_Aggregation" columnName="CLAIM_CODE_VALUE"/>
+    </attribute>
+    <attribute id="EMPLOYEE" order="5" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="EMPLOYEE"/>
+      <keyMapping columnObjectName="Balance_cal_Aggregation" columnName="EMPLOYEE"/>
+    </attribute>
+  
+    <attribute id="ENTITLEMENT" order="8" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="ENTITLEMENT"/>
+  
+      <keyMapping columnObjectName="Balance_cal_Aggregation" columnName="ENTITLEMENT"/>
+  
+    </attribute>
+  
+    <attribute id="DESCRIPTION" order="11" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="DESCRIPTION"/>
+  
+      <keyMapping columnObjectName="Balance_cal_Aggregation" columnName="DESCRIPTION"/>
+  
+    </attribute>
+  
+    <attribute id="YEAR" order="12" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="YEAR"/>
+  
+      <keyMapping columnObjectName="Balance_cal_Aggregation" columnName="YEAR"/>
+  
+    </attribute>
+  
+    <attribute id="DIVISION" order="13" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="DIVISION"/>
+  
+      <keyMapping columnObjectName="Balance_cal_Aggregation" columnName="DIVISION"/>
+  
+    </attribute>
+    <attribute id="PAY_GRADE" order="14" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="PAY_GRADE"/>
+      <keyMapping columnObjectName="Balance_cal_Aggregation" columnName="PAY_GRADE"/>
+    </attribute>
+    <attribute id="PERSONAL_AREA" order="15" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="PERSONAL_AREA"/>
+      <keyMapping columnObjectName="Balance_cal_Aggregation" columnName="PERSONAL_AREA"/>
+    </attribute>
+    <attribute id="PERSONAL_SUB_AREA" order="16" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="PERSONAL_SUB_AREA"/>
+      <keyMapping columnObjectName="Balance_cal_Aggregation" columnName="PERSONAL_SUB_AREA"/>
+    </attribute>
+    <attribute id="DEPARMENT" order="17" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="DEPARMENT"/>
+      <keyMapping columnObjectName="Balance_cal_Aggregation" columnName="DEPARMENT"/>
+    </attribute>
+  </attributes>
+  <calculatedAttributes/>
+  <baseMeasures>
+    <measure id="YTD_OTHER" order="2" aggregationType="sum" measureType="simple">
+      <descriptions defaultDescription="YTD_OTHER"/>
+      <measureMapping columnObjectName="Balance_cal_Aggregation" columnName="YTD_OTHER"/>
+    </measure>
+    <measure id="YTD_CONSULT" order="3" aggregationType="sum" measureType="simple">
+      <descriptions defaultDescription="YTD_CONSULT"/>
+      <measureMapping columnObjectName="Balance_cal_Aggregation" columnName="YTD_CONSULT"/>
+    </measure>
+    <measure id="PENDING_AMOUNT" order="6" aggregationType="sum" measureType="simple">
+      <descriptions defaultDescription="PENDING_AMOUNT"/>
+      <measureMapping columnObjectName="Balance_cal_Aggregation" columnName="PENDING_AMOUNT"/>
+    </measure>
+    <measure id="TAKEN_AMOUNT" order="7" aggregationType="sum" measureType="simple">
+      <descriptions defaultDescription="TAKEN_AMOUNT"/>
+      <measureMapping columnObjectName="Balance_cal_Aggregation" columnName="TAKEN_AMOUNT"/>
+    </measure>
+  
+    <measure id="YTD_WARD_CHARGE" order="9" aggregationType="sum" measureType="simple">
+      <descriptions defaultDescription="YTD_WARD_CHARGE"/>
+      <measureMapping columnObjectName="Balance_cal_Aggregation" columnName="YTD_WARD_CHARGE"/>
+    </measure>
+    <measure id="YTD_HOSPITAL_FEE" order="10" aggregationType="sum" measureType="simple">
+      <descriptions defaultDescription="YTD_HOSPITAL_FEE"/>
+      <measureMapping columnObjectName="Balance_cal_Aggregation" columnName="YTD_HOSPITAL_FEE"/>
+    </measure>
+  </baseMeasures>
+  <calculatedMeasures>
+    <measure id="BALANCE" order="1" aggregationType="sum" measureType="simple" datatype="DECIMAL" length="10" scale="2" expressionLanguage="SQL">
+      <formula>CASE 
+	 WHEN &quot;ENTITLEMENT&quot; != '0' then &quot;ENTITLEMENT&quot;-&quot;PENDING_AMOUNT&quot;-&quot;TAKEN_AMOUNT&quot; 
+	 ELSE '0'
+ END</formula>
+      
+      
+      
+      
+      
+      
+      </measure>
+  </calculatedMeasures>
+  <restrictedMeasures/>
+  <localDimensions/>
+</logicalModel>
+<layout>
+  <shapes>
+    <shape expanded="true" modelObjectName="Output" modelObjectNameSpace="MeasureGroup">
+      <upperLeftCorner x="100" y="105"/>
+    
+      <rectangleSize width="160"/>
+    </shape>
+  
+    <shape expanded="true" modelObjectName="Claim_Data_Cal_Aggregation" modelObjectNameSpace="CalculationView">
+      <upperLeftCorner x="-98" y="505"/>
+      <rectangleSize height="30" width="160"/>
+    </shape>
+    <shape expanded="true" modelObjectName="Claim_Data_Filter_Aggregation" modelObjectNameSpace="CalculationView">
+      <upperLeftCorner x="293" y="499"/>
+      <rectangleSize height="30" width="160"/>
+    </shape>
+    <shape expanded="true" modelObjectName="JoinCalculatedwithFilter" modelObjectNameSpace="CalculationView">
+      <upperLeftCorner x="100" y="326"/>
+      <rectangleSize height="30" width="160"/>
+    </shape>
+    <shape modelObjectName="Claim_Data_Cal_Aggregation" modelObjectNameSpace="JoinCalculatedwithFilter" modelObjectType="JoinNodeInput">
+      <upperLeftCorner x="20" y="30"/>
+      <rectangleSize width="189"/>
+    </shape>
+    <shape modelObjectName="Claim_Data_Filter_Aggregation" modelObjectNameSpace="JoinCalculatedwithFilter" modelObjectType="JoinNodeInput">
+      <upperLeftCorner x="320" y="30"/>
+      <rectangleSize width="186"/>
+    </shape>
+  
+    <shape expanded="true" modelObjectName="Balance_cal_Aggregation" modelObjectNameSpace="CalculationView">
+      <upperLeftCorner x="100" y="208"/>
+      <rectangleSize height="30" width="160"/>
+    </shape>
+  </shapes>
+</layout>
+</Calculation:scenario>

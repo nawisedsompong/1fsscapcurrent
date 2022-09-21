@@ -1,0 +1,60 @@
+FUNCTION "GET_APP_STRUC_ALLCLAIM"(
+	IN EMPLOYEE_ID VARCHAR(50),
+	IN CLAIMCODE VARCHAR(50)
+)
+       RETURNS "tt_ApprStru_table_type"
+       LANGUAGE SQLSCRIPT 
+       SQL SECURITY INVOKER AS 
+BEGIN 
+	
+		DECLARE IDX INT;
+		DECLARE MAXIDX INT;
+		DECLARE lv_index INT;
+		DECLARE LT_CLAIM_TABLE "tt_claim_type";
+		DECLARE currentdate DATE;
+		DECLARE LT_OUT_TABLE "tt_ApprStru_table_type";
+    		
+    		SELECT CURRENT_DATE into currentdate from DUMMY;
+    		
+    		IF :CLAIMCODE = 'NO' THEN
+    			LT_CLAIM_TEMP=	SELECT 
+							"CLAIM_CODE" ,
+							"CATEGORY_CODE"
+							 FROM "BENEFIT_COMPANY_CLAIM_CATEGORY" WHERE "CATEGORY_CODE" <> 'SP' AND "CATEGORY_CODE" <> 'SP1' 
+                             AND "CATEGORY_CODE" <> 'SP2' AND "CATEGORY_CODE" <> 'SP3' 
+				             AND "CATEGORY_CODE" <> 'TC' AND "CATEGORY_CODE" <> 'WRC' 
+				             AND "CATEGORY_CODE" <> 'WRC_HR' AND "CATEGORY_CODE" <> 'COV' AND "CATEGORY_CODE" <> 'SDFC' 
+                             AND "CATEGORY_CODE" <> 'SDFR' AND "CATEGORY_CODE" <> 'CPC'
+                             AND "CATEGORY_CODE" <> 'OC' AND "CATEGORY_CODE" <> 'PAY_UP' AND ("COMPANY"='MOHH' or "COMPANY"='MOHHSCH');
+				             
+				:LT_CLAIM_TEMP.INSERT(('KKH','WRC_HR'));
+				:LT_CLAIM_TEMP.INSERT(('WRBC','WRC'));
+				:LT_CLAIM_TEMP.INSERT(('TPTPB','TC'));
+				:LT_CLAIM_TEMP.INSERT(('TrvExitExamSpons','SP'));
+                :LT_CLAIM_TEMP.INSERT(('TrvHMDSpons1','SP1'));
+                :LT_CLAIM_TEMP.INSERT(('TrvHMDSpons2','SP2'));
+                :LT_CLAIM_TEMP.INSERT(('TrvIntExamSpons','SP3'));
+				:LT_CLAIM_TEMP.INSERT(('COVID19','COV'));
+				:LT_CLAIM_TEMP.INSERT(('SDFAIR','SDFC'));
+				:LT_CLAIM_TEMP.INSERT(('SDRAIR','SDFR'));
+				:LT_CLAIM_TEMP.INSERT(('CPCACC','CPC'));
+				:LT_CLAIM_TEMP.INSERT(('OTARIN','OC'));
+				:LT_CLAIM_TEMP.INSERT(('PUBKST','PAY_UP'));
+	ELSE
+			LT_CLAIM_TEMP=	SELECT 
+							"CLAIM_CODE" ,
+							"CATEGORY_CODE"
+							 FROM "BENEFIT_COMPANY_CLAIM_CATEGORY" WHERE "CLAIM_CODE" = :CLAIMCODE AND ("COMPANY"='MOHH' or "COMPANY"='MOHHSCH');
+				             
+				             
+	END IF;
+	
+		 MAXIDX = RECORD_COUNT(:LT_CLAIM_TEMP);
+	      FOR IDX IN 1..MAXIDX DO	
+	      
+			:LT_CLAIM_TABLE.INSERT((:EMPLOYEE_ID,:LT_CLAIM_TEMP.CLAIM_CODE[IDX],'','','','0.00','','','','',:currentdate,'',''),1);
+    	  END FOR;
+			-- LT_OUT_TABLE = SELECT * FROM "get_ApprovalStructure_Epm"(:LT_CLAIM_TABLE,:EMPLOYEE_ID);
+			LT_OUT_TABLE = SELECT * FROM "get_ApprovalStructure_Hr"(:LT_CLAIM_TABLE,:EMPLOYEE_ID);
+	return :LT_OUT_TABLE;
+END;

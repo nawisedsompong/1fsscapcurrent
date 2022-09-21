@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Calculation:scenario xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:Calculation="http://www.sap.com/ndb/BiModelCalculation.ecore" id="EMPLOYEE_HR_CHECKER" applyPrivilegeType="NONE" dataCategory="DIMENSION" dimensionType="STANDARD" schemaVersion="3.0" outputViewType="Projection" cacheInvalidationPeriod="HOURLY" enforceSqlExecution="false">
+<descriptions defaultDescription="EMPLOYEE_HR_CHECKER"/>
+<localVariables>
+  <variable id="EMPLOYEE_ID" parameter="true">
+    <descriptions defaultDescription="Employee for whom Claim to be raises"/>
+    <variableProperties datatype="NVARCHAR" length="13" mandatory="true">
+      <valueDomain type="empty"/>
+      <selection multiLine="false" type="SingleValue"/>
+    </variableProperties>
+  </variable>
+  <variable id="CLAIMCODE" parameter="true">
+    <descriptions defaultDescription="The claim code for which to be raise"/>
+    <variableProperties datatype="NVARCHAR" length="13" mandatory="true">
+      <valueDomain type="empty"/>
+      <selection multiLine="false" type="SingleValue"/>
+    </variableProperties>
+  </variable>
+  <variable id="HR_MAKER_LOGGED" parameter="true">
+    <descriptions defaultDescription="The logged in HR maker"/>
+    <variableProperties datatype="NVARCHAR" length="13" mandatory="true">
+      <valueDomain type="empty"/>
+      <selection multiLine="false" type="SingleValue"/>
+    </variableProperties>
+  </variable>
+</localVariables>
+<variableMappings/>
+<dataSources>
+  <DataSource id="BENEFIT_HR_MAKER">
+    <resourceUri>BENEFIT_HR_MAKER</resourceUri>
+  </DataSource>
+  <DataSource id="GET_APP_STRUC_ALLCLAIM" type="TABLE_FUNCTION">
+    <resourceUri>GET_APP_STRUC_ALLCLAIM</resourceUri>
+  </DataSource>
+  <DataSource id="BENEFIT_APPROVAL_STRUCTURE_HR">
+    <resourceUri>BENEFIT_APPROVAL_STRUCTURE_HR</resourceUri>
+  </DataSource>
+</dataSources>
+<calculationViews>
+  <calculationView xsi:type="Calculation:ProjectionView" id="HR_Maker_table">
+    <viewAttributes>
+      <viewAttribute id="USERID"/>
+      <viewAttribute id="CLAIM_CLAIM_CODE"/>
+      <viewAttribute id="CLAIM_SEQUENCE_OF_CHECK"/>
+    </viewAttributes>
+    <calculatedViewAttributes/>
+    <input node="BENEFIT_HR_MAKER"/>
+    <filter>&quot;USERID&quot;='$$HR_MAKER_LOGGED$$'</filter>
+  </calculationView>
+  <calculationView xsi:type="Calculation:JoinView" id="HR_maker_Join" cardinality="CN_N" joinType="inner" filterExpressionLanguage="SQL">
+    <viewAttributes>
+      <viewAttribute id="USERID_HR_MAKER"/>
+      <viewAttribute id="CLAIM_CLAIM_CODE"/>
+      <viewAttribute id="CLAIM_SEQUENCE_OF_CHECK"/>
+      <viewAttribute id="SPECIALISATION"/>
+    </viewAttributes>
+    <calculatedViewAttributes/>
+    <input node="HR_Maker_table">
+      <mapping xsi:type="Calculation:AttributeMapping" target="USERID_HR_MAKER" source="USERID"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="CLAIM_CLAIM_CODE" source="CLAIM_CLAIM_CODE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="CLAIM_SEQUENCE_OF_CHECK" source="CLAIM_SEQUENCE_OF_CHECK"/></input>
+    <input node="RequiredAppStruct_join">
+      <mapping xsi:type="Calculation:AttributeMapping" target="SPECIALISATION" source="SPECIALISATION"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="CLAIM_CLAIM_CODE" source="CLAIM_CODE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="CLAIM_SEQUENCE_OF_CHECK" source="SEQUENCE_OF_CHECK"/>
+    </input>
+    <filter>&quot;USERID_HR_MAKER&quot; = '$$HR_MAKER_LOGGED$$'</filter>
+    <joinAttribute name="CLAIM_CLAIM_CODE"/>
+    <joinAttribute name="CLAIM_SEQUENCE_OF_CHECK"/>
+  </calculationView>
+  <calculationView xsi:type="Calculation:JoinView" id="RequiredAppStruct_join" cardinality="CN_N" joinType="inner">
+    <viewAttributes>
+      <viewAttribute id="SPECIALISATION"/>
+      <viewAttribute id="CLAIM_CODE"/>
+      <viewAttribute id="SEQUENCE_OF_CHECK"/>
+      <viewAttribute id="EMPLOYEE_ID"/>
+      <viewAttribute id="PERSONNEL_AREA"/>
+      <viewAttribute id="DESCRIPTION"/>
+      <viewAttribute id="PERSONAL_SUBAREA"/>
+      <viewAttribute id="PAY_GRADE"/>
+      <viewAttribute id="SPONSOR_INSTITUTION"/>
+      <viewAttribute id="EMPLOYEE_DEPARTMENT"/>
+      <viewAttribute id="EMPLOYEE_DIVISION"/>
+      <viewAttribute id="FIRST_LEVEL_APPROVER"/>
+      <viewAttribute id="SECOND_LEVEL_APPROVER"/>
+      <viewAttribute id="THIRD_LEVEL_APPROVER"/>
+      <viewAttribute hidden="true" id="JOIN$SEQUENCE_OF_CHECK$SEQUENCE_OF_CHECK"/>
+      <viewAttribute hidden="true" id="JOIN$CLAIM_CODE$CLAIM_CODE"/>
+    </viewAttributes>
+    <calculatedViewAttributes/>
+    <input node="All_ClaimApp_Struc_Projection">
+      <mapping xsi:type="Calculation:AttributeMapping" target="EMPLOYEE_ID" source="EMPLOYEE_ID"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="JOIN$SEQUENCE_OF_CHECK$SEQUENCE_OF_CHECK" source="SEQUENCE_OF_CHECK"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="JOIN$CLAIM_CODE$CLAIM_CODE" source="CLAIM_CODE"/>
+    </input>
+    <input node="APP_STRUCT_PROJ">
+      <mapping xsi:type="Calculation:AttributeMapping" target="PERSONNEL_AREA" source="PERSONNEL_AREA"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="CLAIM_CODE" source="CLAIM_CODE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="DESCRIPTION" source="DESCRIPTION"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="SEQUENCE_OF_CHECK" source="SEQUENCE_OF_CHECK"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="PERSONAL_SUBAREA" source="PERSONAL_SUBAREA"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="PAY_GRADE" source="PAY_GRADE"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="SPONSOR_INSTITUTION" source="SPONSOR_INSTITUTION"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="EMPLOYEE_DEPARTMENT" source="EMPLOYEE_DEPARTMENT"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="EMPLOYEE_DIVISION" source="EMPLOYEE_DIVISION"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="FIRST_LEVEL_APPROVER" source="FIRST_LEVEL_APPROVER"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="SECOND_LEVEL_APPROVER" source="SECOND_LEVEL_APPROVER"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="SPECIALISATION" source="SPECIALISATION"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="THIRD_LEVEL_APPROVER" source="THIRD_LEVEL_APPROVER"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="JOIN$SEQUENCE_OF_CHECK$SEQUENCE_OF_CHECK" source="SEQUENCE_OF_CHECK"/>
+      <mapping xsi:type="Calculation:AttributeMapping" target="JOIN$CLAIM_CODE$CLAIM_CODE" source="CLAIM_CODE"/>
+    </input>
+    <joinAttribute name="JOIN$SEQUENCE_OF_CHECK$SEQUENCE_OF_CHECK"/>
+    <joinAttribute name="JOIN$CLAIM_CODE$CLAIM_CODE"/>
+  </calculationView>
+  <calculationView xsi:type="Calculation:ProjectionView" id="All_ClaimApp_Struc_Projection">
+    <viewAttributes>
+      <viewAttribute id="SEQUENCE_OF_CHECK"/>
+      <viewAttribute id="DESCRIPTION"/>
+      <viewAttribute id="CLAIM_CODE"/>
+      <viewAttribute id="EMPLOYEE_ID"/>
+      <viewAttribute id="CLAIM_REFERENCE"/>
+    </viewAttributes>
+    <calculatedViewAttributes>
+      <calculatedViewAttribute id="EMPID_DUMMY" datatype="NVARCHAR" length="13" expressionLanguage="SQL">
+        <formula>'$$EMPLOYEE_ID$$'</formula>
+      </calculatedViewAttribute>
+      <calculatedViewAttribute id="CLAIMCODE_DUMMY" datatype="NVARCHAR" length="13" expressionLanguage="SQL">
+        <formula>'$$CLAIMCODE$$'</formula>
+      </calculatedViewAttribute>
+    </calculatedViewAttributes>
+    <input node="GET_APP_STRUC_ALLCLAIM"/>
+  </calculationView>
+  <calculationView xsi:type="Calculation:ProjectionView" id="APP_STRUCT_PROJ">
+    <viewAttributes>
+      <viewAttribute id="PERSONNEL_AREA"/>
+      <viewAttribute id="CLAIM_CODE"/>
+      <viewAttribute id="DESCRIPTION"/>
+      <viewAttribute id="SEQUENCE_OF_CHECK"/>
+      <viewAttribute id="PERSONAL_SUBAREA"/>
+      <viewAttribute id="PAY_GRADE"/>
+      <viewAttribute id="SPONSOR_INSTITUTION"/>
+      <viewAttribute id="EMPLOYEE_DEPARTMENT"/>
+      <viewAttribute id="EMPLOYEE_DIVISION"/>
+      <viewAttribute id="FIRST_LEVEL_APPROVER"/>
+      <viewAttribute id="SECOND_LEVEL_APPROVER"/>
+      <viewAttribute id="SPECIALISATION"/>
+      <viewAttribute id="THIRD_LEVEL_APPROVER"/>
+    </viewAttributes>
+    <calculatedViewAttributes/>
+    <input node="BENEFIT_APPROVAL_STRUCTURE_HR"/>
+  </calculationView>
+</calculationViews>
+<logicalModel id="HR_maker_Join">
+  <attributes>
+    <attribute id="USERID_HR_MAKER" order="1" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="USERID"/>
+      <keyMapping columnObjectName="HR_maker_Join" columnName="USERID_HR_MAKER"/>
+    </attribute>
+    <attribute id="CLAIM_CLAIM_CODE" order="2" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="CLAIM_CLAIM_CODE"/>
+      <keyMapping columnObjectName="HR_maker_Join" columnName="CLAIM_CLAIM_CODE"/>
+    </attribute>
+    <attribute id="CLAIM_SEQUENCE_OF_CHECK" order="3" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="CLAIM_SEQUENCE_OF_CHECK"/>
+      <keyMapping columnObjectName="HR_maker_Join" columnName="CLAIM_SEQUENCE_OF_CHECK"/>
+    </attribute>
+    <attribute id="SPECIALISATION" order="4" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="SPECIALISATION"/>
+      <keyMapping columnObjectName="HR_maker_Join" columnName="SPECIALISATION"/>
+    </attribute>
+  </attributes>
+  <calculatedAttributes/>
+  <baseMeasures/>
+  <calculatedMeasures/>
+  <restrictedMeasures/>
+</logicalModel>
+<layout>
+  <shapes>
+    <shape expanded="true" modelObjectName="Output" modelObjectNameSpace="MeasureGroup">
+      <upperLeftCorner x="-83" y="189"/>
+    
+      <rectangleSize width="160"/>
+    </shape>
+    <shape expanded="true" modelObjectName="HR_Maker_table" modelObjectNameSpace="CalculationView">
+      <upperLeftCorner x="189" y="393"/>
+      <rectangleSize height="30" width="160"/>
+    </shape>
+    <shape expanded="true" modelObjectName="HR_maker_Join" modelObjectNameSpace="CalculationView">
+      <upperLeftCorner x="80" y="195"/>
+      <rectangleSize height="30" width="160"/>
+    </shape>
+    <shape modelObjectName="HR_Maker_table" modelObjectNameSpace="HR_maker_Join" modelObjectType="JoinNodeInput">
+      <upperLeftCorner x="620" y="30"/>
+      <rectangleSize width="253"/>
+    </shape>
+    <shape modelObjectName="RequiredAppStruct_join" modelObjectNameSpace="HR_maker_Join" modelObjectType="JoinNodeInput">
+      <upperLeftCorner x="920" y="30"/>
+      <rectangleSize width="250"/>
+    </shape>
+    <shape expanded="true" modelObjectName="RequiredAppStruct_join" modelObjectNameSpace="CalculationView">
+      <upperLeftCorner x="-105" y="393"/>
+      <rectangleSize height="30" width="160"/>
+    </shape>
+    <shape modelObjectName="All_ClaimApp_Struc_Projection" modelObjectNameSpace="RequiredAppStruct_join" modelObjectType="JoinNodeInput">
+      <upperLeftCorner x="20" y="30"/>
+      <rectangleSize width="244"/>
+    </shape>
+    <shape modelObjectName="APP_STRUCT_PROJ" modelObjectNameSpace="RequiredAppStruct_join" modelObjectType="JoinNodeInput">
+      <upperLeftCorner x="320" y="30"/>
+      <rectangleSize width="240"/>
+    </shape>
+  
+    <shape expanded="true" modelObjectName="All_ClaimApp_Struc_Projection" modelObjectNameSpace="CalculationView">
+      <upperLeftCorner x="-275" y="556"/>
+      <rectangleSize height="30" width="160"/>
+    </shape>
+    <shape expanded="true" modelObjectName="APP_STRUCT_PROJ" modelObjectNameSpace="CalculationView">
+      <upperLeftCorner x="0" y="566"/>
+      <rectangleSize height="30" width="160"/>
+    </shape></shapes>
+</layout>
+</Calculation:scenario>
