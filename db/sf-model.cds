@@ -427,7 +427,9 @@ and EmpJob.endDate >= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM
 		key Rep_Log_ID: String(50);
 		key Rep_Timestamp: DateTime;
 		key Internal_Claim_Reference: String(100);
+			Master_Claim_Reference: String(100);
 			Export_Reference: String(50);
+			Category_Code: String(50);
 			Claim_Status: String(50);
 			Rep_Status: String(20);
 			Message: String;
@@ -450,8 +452,8 @@ and EmpJob.endDate >= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM
 			Lineitem_Table_Name: String(100);
 	}
 	
-	entity SMS_Excel_Upload {
-	   key id:Integer;
+	entity SMS_Import_Posting_Upload {
+	   key id: String(1);
 	   @Core.MediaType: mediaType
 	   content : LargeBinary ;
 	   @Core.IsMediaType: true
@@ -459,18 +461,27 @@ and EmpJob.endDate >= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM
 	   fileName : String;
 	}
 	
-	entity SMS_Excel_Upload_Logs {
+	entity SMS_Import_Posting_Upload_Logs {
 		key Log_Id: String(50);
 		key Timestamp: DateTime;
 		Employee_ID: String(100);
+		Employee_Name: String(100);
 		Posting_Date: Date;
 		Posting_Amount: Decimal(10, 2);
 		Invoice_Number: String(100);
 		Currency: String(20);
 		Export_Reference: String(100);
+		Category_Code: String(50);
+		Master_Claim_Reference: String(100);
 		Internal_Claim_Reference: String(100);
 		Status: String(20);
 		Message: String;
+		File_Name: String(150);
+		Company_Code: String(20);
+		FI_Document_No: String(50);
+		Fiscal_Year: String(4);
+		Item_Description: String;
+		Remarks: String;
 	}
 	
 	define view EmployeeInformationall as select from PerPersonalView as PerPersonal 

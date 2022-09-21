@@ -15,6 +15,9 @@ service CalculationService @(path:'/calclaim')@(impl:'./benefit-ext-service.js')
    //@readonly entity getClaimBalanceDetails(USER_ID:String(50),CLAIM_CODE_IN:String(50),ELIGIBILITY:String(50)) as select from cal.GET_TAKEN_PENDING(USER_ID: :USER_ID,CLAIM_CODE_IN: :CLAIM_CODE_IN,ELIGIBILITY: :ELIGIBILITY);
     @readonly entity getClaimBalanceDetails(USER_ID:String(50),CLAIM_YEAR:String(13)) as select from cal.GET_TAKEN_PENDING(USER_ID: :USER_ID,CLAIM_YEAR: :CLAIM_YEAR);
     @readonly entity getClaimBalanceDetailsall(USER_ID:String(50) ,CLAIM_YEAR:String(13)) as select from cal.GET_TAKEN_PENDING_ALL(USER_ID: :USER_ID,CLAIM_YEAR: :CLAIM_YEAR);
+    @cds.query.limit.max: 500000
+	@cds.query.limit.default: 500000
+    @readonly entity MEDISAVE_REPORT as select from cal.MEDISAVE_REPORT;
     function getSDFClaimBalanceDetails(USER_ID: String(50)) returns {
     	ENTITLEMENT: Decimal(10,2);
     	UNUTILIZED_AMOUNT: Decimal(10,2); 
@@ -25,12 +28,16 @@ service CalculationService @(path:'/calclaim')@(impl:'./benefit-ext-service.js')
     };
     // @readonly entity getClaimBalanceDetailsall(USER_ID:String(50) ,CLAIM_YEAR:String(13),PERSONAL_SUBAREA:String(20),PERSONAL_AREA_IN:String(20)) as select from cal.GET_TAKEN_PENDING_ALL(USER_ID: :USER_ID,CLAIM_YEAR: :CLAIM_YEAR,PERSONAL_SUBAREA: :PERSONAL_SUBAREA,PERSONAL_AREA_IN: :PERSONAL_AREA_IN);
    //function userValidation(USERID:String) returns String;
+   @cds.query.limit.max: 500000
+   @cds.query.limit.default: 500000
+   entity Claim_Coordinator_ytd(claim_Cordinator : String(50)) as select from cal.Claim_Coordinator_ytd(claim_Cordinator: :claim_Cordinator);
    entity excelUpload   as projection on cal.excelUpload ;
    entity uploadConfig   as projection on cal.uploadConfig;
    entity pay_up_config   as projection on cal.pay_up_config;
    entity THREAD_JOB_INFO as projection on cal.THREAD_JOB_INFO;
-   entity PAY_UP as projection on cal.PAY_UP
-   function exportExcelClaim(USERID:String,fromDate:Date,toDate:Date,CORDIN:String,Personnel_Area:String,Personal_Subarea:String,Pay_Grade:String,Division:String,HR_ADMIN:String,CLAIM_STATUS:String,CLAIM_TYPE:String,CATEGORY_CODE:String) returns String;
+   entity PAY_UP as projection on cal.PAY_UP;
+   entity EXPORT_REPORT_STATUS as projection on cal.EXPORT_REPORT_STATUS;
+   function exportExcelClaim(USERID:String,fromDate:Date,toDate:Date,CORDIN:String,Personnel_Area:String,Personal_Subarea:String,Pay_Grade:String,Division:String,HR_ADMIN:String,CLAIM_STATUS:String,CLAIM_TYPE:String,CATEGORY_CODE:String,CLAIM_REFERENCE :String) returns String;
    function exportExcelTemplate(CLAIM:String) returns String;
    function getUploadErrorLog(id:String) returns {id:String; error:String;success:String};
    function getPay_Up_LineItems(id:String, paymentTo:String(7)) returns array of {
@@ -54,6 +61,7 @@ service CalculationService @(path:'/calclaim')@(impl:'./benefit-ext-service.js')
 	   CUST_CURRENCY: String;
 	   CUST_ACCOUNTOWNER: String;
 	   CUST_BANKACCOUNTNUMBER: String;
+	   CUST_VENDORCODE: String;
    };
    
  }

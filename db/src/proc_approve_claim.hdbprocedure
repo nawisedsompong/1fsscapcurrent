@@ -21,13 +21,19 @@ BEGIN
 		DECLARE lv_claimstatus VARCHAR(100);
 		DECLARE EMPLOYEE_UPDATE VARCHAR(30);
 		DECLARE YEAR_UPDATE VARCHAR(20);
+		DECLARE lv_claimCategory VARCHAR(100);
+		DECLARE lv_company VARCHAR(100);
 		-- Fetch Claim Owner ID
 		LT_EMP_ID = :LT_AP_CLAIM_TABLE.CLAIM_OWNER_ID[1];
 		lv_claimstatus = :LT_AP_CLAIM_TABLE.CLAIM_STATUS[1];
+		lv_claimCategory= :LT_AP_CLAIM_TABLE.CATEGORY_CODE[1];
 		-- LT_DATE_VALUE= SELECT CURRENT_DATE FROM DUMMY;
 		-- LT_CURRENT_DATE =:LT_DATE_VALUE.CURRENT_DATE[0];
 		
-		IF :lv_claimstatus = 'Approved' then
+		CATEGORY_COMPANY=  SELECT TOP 1 * FROM "BENEFIT_COMPANY_CLAIM_CATEGORY" WHERE "CATEGORY_CODE" = :lv_claimCategory;
+		lv_company = :CATEGORY_COMPANY.COMPANY[1];
+		
+		IF :lv_claimstatus = 'Approved'  and lv_company <> 'MOHHSCH' then
 		-- Check if for the present date for an Employee we have the Posting Cut off Details-----
 		LT_POSTING_CUTOFF_Y= SELECT * FROM "get_PaymentDate_Value"(:LT_AP_CLAIM_TABLE) WHERE "POSTING_AVAILABLE" = 'Y' ;
 		LT_POSTING_CUTOFF_N= SELECT * FROM "get_PaymentDate_Value"(:LT_AP_CLAIM_TABLE) WHERE "POSTING_AVAILABLE" = 'X';

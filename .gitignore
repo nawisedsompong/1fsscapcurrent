@@ -50,5 +50,3 @@ zbenefitclaim/env.json
 zbenefitclaim/.env
 # auto generated wildcard
 zbenefitclaim/db/.env
-preview.json
-cp.project.properties.json

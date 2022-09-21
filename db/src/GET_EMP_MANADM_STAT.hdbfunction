@@ -106,7 +106,7 @@ FUNCTION "GET_EMP_MANADM_STAT" (USER_ID VARCHAR(50))
             					where "RELATIONSHIPTYPE"='HR Manager' and "RELUSERID" = :ex_temp_user_id;
                	  SELECT COUNT(*) into HR_CHECKER FROM "BENEFIT_HR_CHECKER" WHERE "USERID" = :ex_temp_user_id;
                	  SELECT COUNT(*) into AST_VAR FROM "BENEFIT_APPROVAL_STRUCTURE" WHERE "FIRST_LEVEL_APPROVER" = :ex_temp_user_id
-               					or "SECOND_LEVEL_APPROVER" = :ex_temp_user_id or "THIRD_LEVEL_APPROVER" = :ex_temp_user_id  ;
+               					or "SECOND_LEVEL_APPROVER" = :ex_temp_user_id or "THIRD_LEVEL_APPROVER" = :ex_temp_user_id or "FOURTH_LEVEL_APPROVER" = :ex_temp_user_id  ;
                	  
             	  SELECT COUNT(*) into DELEGATOR FROM "BENEFIT_DELEGATOR" WHERE "DELEGATOR_ID" = :ex_temp_user_id AND "START_DATE" <= :vCurrentDate
 						AND "END_DATE" >= :vCurrentDate;

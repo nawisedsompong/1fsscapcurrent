@@ -31,9 +31,13 @@ context benefit{
     	 Employee_Department:String(100);
     	 Employee_Division:String(100);
     	 First_Level_Approver:String(100);
+    	 First_Level_Approver_Name: String(500);
     	 Second_Level_Approver:String(100);
+    	 Second_Level_Approver_Name: String(500);
     	 Third_Level_Approver:String(100);
+    	 Third_Level_Approver_Name: String(500);
     	 Fourth_Level_Approver:String(100);
+    	 Fourth_Level_Approver_Name: String(500);
     	 Specialisation:String(100);
     	 //HR_checker: Composition of one Hr_Checker
       //                     on $self = HR_checker.Claim;
@@ -52,9 +56,13 @@ context benefit{
     	 Employee_Department:String(100);
     	 Employee_Division:String(100);
     	 First_Level_Approver:String(100);
+    	 First_Level_Approver_Name: String(500);
     	 Second_Level_Approver:String(100);
+    	 Second_Level_Approver_Name: String(500);
     	 Third_Level_Approver:String(100);
+    	 Third_Level_Approver_Name: String(500);
     	 Fourth_Level_Approver:String(100);
+    	 Fourth_Level_Approver_Name: String(500);
     	 Specialisation:String(100);
     	 HR_checker: Composition of one Hr_Checker
                            on $self = HR_checker.Claim;
@@ -64,11 +72,13 @@ context benefit{
     
     entity Hr_Maker {
     	key UserID: String(50);
+    		Full_Name :String(500);
     	key Claim: Association to approval_structure_hr;
     }
     
     entity Hr_Checker {
     	    UserID: String(50);
+    	    Full_Name :String(500);
        key  Claim: Association to approval_structure_hr;
     }
     
@@ -78,6 +88,7 @@ context benefit{
     	key Company:String(50);
     	key Claim_Code:String(50);
     	key Claim_Category:String(50);
+    	Claim_Description: String(256); 
     	Claim_Type:String(50);
     	Dependent_Claim_Code: String(50);
     	Ref_Replication_Date_Type: String(50);
@@ -91,6 +102,9 @@ context benefit{
     	Period_Number:String(50);
     	Period_Units:String(50);
     	Allow_Approver:String(50);
+    	Allow_Approver2:String(50);
+    	Allow_Approver3:String(50);
+    	Allow_Approver4:String(50);
     	Pay_Component:String(50);
     	Sl_Application:String(50);
     	Replication_Type:String(50);
@@ -550,6 +564,7 @@ context benefit{
     key  DIVISION:String(50);
     	 DIVISION_ID: String(100);
     key	 Location_RO_EmployeeID:String(50);
+    	 Location_RO_Name: String(500);
     	 START_DATE: Date;
     	 END_DATE: Date;
    };
@@ -583,6 +598,7 @@ context benefit{
 	}
 entity Benefit_Entitlement_Adjust{
 		key emp_Id                  : String(50);
+			Emp_Name				: String(500);
 		key Year					: String(4);
 		key	Claim_code				: String(50);
 			Adjustment				: Decimal(10,2);
@@ -873,8 +889,8 @@ entity Benefit_Entitlement_Adjust{
 	
 	entity BEN_LOCATION{
 		key START_DATE : Date;
-		key END_DATE: Date;
 		key	LOCATION: String(100);
+		END_DATE: Date;
 	}
 	
 	entity VEHICLE_RATE{
@@ -929,11 +945,12 @@ entity Benefit_Entitlement_Adjust{
 		ADMIN_ROLE:String(10);	
 	}
 	
-	entity CLAIM_COORDINATOR {
+	entity CLAIM_COORDINATOR : cuid{
+		STARTDATE:Date;
+		COORDINATOR:String(50);
 		EMPLOYEE_ID:String(50);
 		EMP_FNAME:String(50);
 		EMP_LANME:String(50);
-		STARTDATE:Date;
 		ENDDATE:Date;
 		PERSONNEL_AREA:String(50);
 		PERSONAL_SUBAREA:String(50);
@@ -942,7 +959,6 @@ entity Benefit_Entitlement_Adjust{
 		SPECIALISATION:String(50);
 		EMPLOYEE_DEPARTMENT:String(50);
 		EMPLOYEE_DIVISION:String(50);
-		COORDINATOR:String(50);
 		COORD_FNAME:String(50);
 		COORD_LNAME:String(50);
 		REPORT:String(50);
@@ -1534,8 +1550,10 @@ entity Benefit_Entitlement_Adjust{
 	left join sf.Replication_Logs as  Replication_Logs
 	on (approval.CLAIM_REFERENCE = Replication_Logs.Internal_Claim_Reference)
 	// inner join sf.PerPersonalView as empName
+	inner join sf.PerPersonalView as OWNERName
+	on OWNERName.personIdExternal = approval.CLAIM_OWNER_ID
 	inner join sf.PerPersonalView as empName
-	on empName.personIdExternal = approval.CLAIM_OWNER_ID
+	on empName.personIdExternal = approval.EMPLOYEE_ID
 	// and empName.startDate <= $now
 	//Posting Cut off
 	left join sf.claimPostingCutoff as cutOff
@@ -1548,7 +1566,8 @@ distinct{
 	key  approval.CLAIM_REFERENCE,
 		 Replication_Logs.Rep_Status,
     	 approval.EMPLOYEE_ID,
-    	 approval.EMPLOYEE_NAME,
+    	 //approval.EMPLOYEE_NAME,
+    	 empName.fullName AS EMPLOYEE_NAME,
     	 approval.CLAIM_TYPE,
     	 approval.CLAIM_DATE,
     	 approval.AMOUNT,
@@ -1560,10 +1579,11 @@ distinct{
     	 CASE WHEN  estpay.ESTIMATEPAYMENTDATE IS NULL or estpay.ESTIMATEPAYMENTDATE = ''  THEN approval.ESTIMATEPAYMENTDATE 
 							ELSE estpay.ESTIMATEPAYMENTDATE END as ESTIMATEPAYMENTDATE:String,
     	 approval.RECEIPT_DATE,
-    	 empName.firstName as Claim_Owner_FirstName,
-    	 empName.lastName  as Claim_Owner_LastName,
-    	 empName.fullName as Claim_Owner_FullName,
-    	 cutOff.postingCutoffDate
+    	 OWNERName.firstName as Claim_Owner_FirstName,
+    	 OWNERName.lastName  as Claim_Owner_LastName,
+    	 OWNERName.fullName as Claim_Owner_FullName,
+    	 cutOff.postingCutoffDate,
+    	 Claim_emp_comp.company
 };
 
 define view claim_coord_employee with parameters claim_Cordinator:String(20) as select from CLAIM_COORDINATOR as coordinate
@@ -1586,7 +1606,9 @@ distinct
 	key EmpJob.userId as EmployeeID,
 		perperson.firstName,
     	perperson.lastName,
-    	perperson.fullName
+    	perperson.fullName,
+    	coordinate.REPORT,
+    	coordinate.SUBMIT
 }
 where coordinate.STARTDATE <= CURRENT_DATE 
 and coordinate.ENDDATE >= CURRENT_DATE;
@@ -1596,6 +1618,8 @@ and coordinate.ENDDATE >= CURRENT_DATE;
 define view Approval_Claim_Coordinator with parameters claim_Cordinator:String(20) as select from claim_coord_employee(claim_Cordinator: :claim_Cordinator) as coordinate_employee
 inner join Approval_Histroy as hist
 on coordinate_employee.EmployeeID = hist.CLAIM_OWNER_ID
+left join listwithclaimDetailsneeded as claimItemMax
+on claimItemMax.PARENT_CLAIM_REF = hist.CLAIM_REFERENCE
 {
 	key  hist.Claim_Ref_Number,
 	key  hist.CLAIM_REFERENCE,
@@ -1612,7 +1636,13 @@ on coordinate_employee.EmployeeID = hist.CLAIM_OWNER_ID
     	 hist.ESTIMATEPAYMENTDATE,
     	 hist.RECEIPT_DATE,
     	 hist.Claim_Owner_FirstName,
-    	 hist.Claim_Owner_LastName
+    	 hist.Claim_Owner_LastName,
+    	 hist.Claim_Owner_FullName,
+    	 hist.Rep_Status,
+    	 claimItemMax.CLAIM_CODE as LINE_CLAIM_CODE,
+		 claimItemMax.CLAIM_CATEGORY as LINE_CLAIM_CATEGORY,
+		 coordinate_employee.REPORT,
+		 coordinate_employee.SUBMIT
 };
 
 define view ITEM_CORD with parameters claim_Cordinator:String(20) as select from PAY_UP_LINEITEM_CLAIM as PAY_ITEM
@@ -1620,6 +1650,8 @@ inner join claim_coord_employee(claim_Cordinator: :claim_Cordinator) as coordina
 on coordinate_employee.EmployeeID = PAY_ITEM.SCHOLAR_ID
 inner join Approval_Histroy as hist
 on hist.CLAIM_REFERENCE = PAY_ITEM.parent.CLAIM_REFERENCE
+left join listwithclaimDetailsneeded as claimItemMax
+on claimItemMax.PARENT_CLAIM_REF = hist.CLAIM_REFERENCE
 {
 	     hist.Claim_Ref_Number,
 	     hist.CLAIM_REFERENCE,
@@ -1636,7 +1668,13 @@ on hist.CLAIM_REFERENCE = PAY_ITEM.parent.CLAIM_REFERENCE
     	 hist.ESTIMATEPAYMENTDATE,
     	 hist.RECEIPT_DATE,
     	 hist.Claim_Owner_FirstName,
-    	 hist.Claim_Owner_LastName
+    	 hist.Claim_Owner_LastName,
+    	 hist.Claim_Owner_FullName,
+    	 hist.Rep_Status,
+    	 claimItemMax.CLAIM_CODE as LINE_CLAIM_CODE,
+		 claimItemMax.CLAIM_CATEGORY as LINE_CLAIM_CATEGORY,
+		 coordinate_employee.REPORT,
+		 coordinate_employee.SUBMIT
 };
 
 
@@ -1845,9 +1883,9 @@ on hist.CLAIM_REFERENCE = PAY_ITEM.parent.CLAIM_REFERENCE
 		 hist.LINE_ITEM_DESC,
 		 hist.LINE_INVDATE,
 		 hist.LINE_ITEM_INVNUMBER,
-		 hist.LINE_ITEM_CURRENCY
-		 
-		 
+		 hist.LINE_ITEM_CURRENCY,
+		 hist.CANCEL_PARENT_CLAIM,
+		 hist.Entitlement_Type
 } where PAY_ITEM.SCHOLAR_ID =:EMP_LINEITEM;
 // or PAY_ITEM.CLAIM_REFERENCE =:CLAIM_REFERENCE 
 // or hist.CLAIM_OWNER_ID =:EMP_LINEITEM;
@@ -2150,6 +2188,8 @@ AND lineall.CLAIM_REFERENCE = max.CLAIM_REF{
 define view app_histwithCancel as select from Approval_Histroy as hist
 left join cancelAfterApproveView as withCancel
 on withCancel.Claim_Reference = hist.CLAIM_REFERENCE 
+left join CLAIM_CANCEL_MASTER as cancelmaster 
+ON hist.CLAIM_REFERENCE = cancelmaster.CLAIM_REFERENCE
 inner join Claim_Status as cstatus
 on cstatus.Claim_Reference = hist.CLAIM_REFERENCE
 left join sf.EmpJob as EmpJob
@@ -2158,6 +2198,9 @@ and EmpJob.startDate <= $now
 and EmpJob.endDate >= $now
 left join listwithclaimDetailsneeded as claimItemMax
 on claimItemMax.PARENT_CLAIM_REF = hist.CLAIM_REFERENCE
+left join Benefit_Claim_Admin as AdminClaim
+on ( AdminClaim.Claim_Code = hist.CLAIM_TYPE)
+and AdminClaim.Company = EmpJob.company and AdminClaim.Start_Date <= $now and AdminClaim.End_Date >= $now
 {
 	key  hist.Claim_Ref_Number,
 	key  hist.CLAIM_REFERENCE,
@@ -2214,7 +2257,10 @@ on claimItemMax.PARENT_CLAIM_REF = hist.CLAIM_REFERENCE
 		 claimItemMax.ITEM_DESC as LINE_ITEM_DESC,
 		 claimItemMax.INVOICE_DATE as LINE_INVDATE,
 		 claimItemMax.INVOICE_NUMBER as LINE_ITEM_INVNUMBER,
-		 claimItemMax.CURRENCY as LINE_ITEM_CURRENCY
+		 claimItemMax.CURRENCY as LINE_ITEM_CURRENCY,
+		 cancelmaster.parent.Claim_Reference as CANCEL_PARENT_CLAIM,
+		 case when AdminClaim.Entitlement_Type is null then 'Without Entitlement' 
+		 else AdminClaim.Entitlement_Type end as Entitlement_Type : String
 };
 
 define view app_delegation with parameters delegator_id:String(20) as select from app_histwithCancel as hist
@@ -2398,6 +2444,21 @@ on VENDOR.SCHOLAR_SCHEME= sch.cust_scholarshipScheme{
 	BANK.cust_vendorCode
 };
 
+define view IMPORT_POSTING_DETAILS as select from sf.SMS_Import_Posting_Upload_Logs AS IMPORT_POSTING_LOGS
+{ 
+	CAST(max(IMPORT_POSTING_LOGS.Timestamp) as DateTime) as Import_Timestamp,
+	IMPORT_POSTING_LOGS.Internal_Claim_Reference
+} 
+where IMPORT_POSTING_LOGS.Status != 'Error'
+group by IMPORT_POSTING_LOGS.Internal_Claim_Reference;
+
+define view EXPORT_DETAILS as select from sf.SMS_Replication_Logs AS EXPORT_LOGS
+{ 
+	EXPORT_LOGS.Rep_Timestamp,
+	EXPORT_LOGS.Internal_Claim_Reference,
+	EXPORT_LOGS.Export_Reference
+} group by EXPORT_LOGS.Rep_Timestamp, EXPORT_LOGS.Internal_Claim_Reference, EXPORT_LOGS.Export_Reference;
+
 define view SMS_PAY_UP_PAYMENT_REPORT as select from PAY_UP_LINEITEM_CLAIM as LINEITEM_TABLE
 inner join PAY_UP_MASTER_CLAIM as MASTER_TABLE
 on MASTER_TABLE.CLAIM_REFERENCE = LINEITEM_TABLE.parent.CLAIM_REFERENCE and MASTER_TABLE.CLAIM_STATUS!='Pending for Submission'
@@ -2405,43 +2466,37 @@ left join sf.PerPersonal as PER_PERSON
 on PER_PERSON.personIdExternal = LINEITEM_TABLE.SCHOLAR_ID
 left join Claim_Code as CLAIM_CODE
 on CLAIM_CODE.Claim_code = LINEITEM_TABLE.CLAIM_CODE
+left join EXPORT_DETAILS as EXPORT_LOGS
+on EXPORT_LOGS.Internal_Claim_Reference = LINEITEM_TABLE.CLAIM_REFERENCE
+left join IMPORT_POSTING_DETAILS as IMPORT_LOGS
+on IMPORT_LOGS.Internal_Claim_Reference = LINEITEM_TABLE.CLAIM_REFERENCE
 {
 key	LINEITEM_TABLE.SCHOLAR_ID as EMPLOYEE_ID, 
 	PER_PERSON.firstName as EMPLOYEE_FIRST_NAME,
 	PER_PERSON.lastName as EMPLOYEE_LAST_NAME,
+	PER_PERSON.customString2 as EMPLOYEE_FULL_NAME,
 	MASTER_TABLE.CLAIM_CATEGORY,
 	LINEITEM_TABLE.CLAIM_CODE,
 	CLAIM_CODE.Description as CLAIM_DESCRIPTION,
-	LINEITEM_TABLE.ACC_NAME,
-	LINEITEM_TABLE.ACC_NO,
-	LINEITEM_TABLE.VENDOR_CODE,
-	LINEITEM_TABLE.GL_ACCOUNT,
-	LINEITEM_TABLE.POST_DATE,
 	MASTER_TABLE.CLAIM_REFERENCE,
-key	LINEITEM_TABLE.LINE_ITEM_REFERENCE_NUMBER,
+	MASTER_TABLE.CLAIM_STATUS,
 	LINEITEM_TABLE.ITEM_DESC,
-	LINEITEM_TABLE.INVOICE_NUMBER,
 	LINEITEM_TABLE.INVOICE_DATE,
+	LINEITEM_TABLE.INVOICE_NUMBER,
 	LINEITEM_TABLE.CURRENCY,
+	LINEITEM_TABLE.CLAIM_AMOUNT,
 	LINEITEM_TABLE.POST_CURRENCY,
 	LINEITEM_TABLE.POST_CLAIM_AMOUNT,
+	LINEITEM_TABLE.POST_DATE,
+key	LINEITEM_TABLE.CLAIM_REFERENCE as LINE_ITEM_REFERENCE_NUMBER,
+	LINEITEM_TABLE.ACC_NAME as BANK_ACCOUNT_NAME,
+	LINEITEM_TABLE.ACC_NO as BANK_ACCOUNT_NUMBER,
+	LINEITEM_TABLE.GL_ACCOUNT,
+	LINEITEM_TABLE.VENDOR_CODE,
 	LINEITEM_TABLE.ITEM_LINE_REMARKS_EMPLOYEE,
-	MASTER_TABLE.REMARKS_EMPLOYEE,
-	MASTER_TABLE.REMARKS_APPROVER1,
-	MASTER_TABLE.REMARKS_APPROVER2,
-	MASTER_TABLE.REMARKS_APPROVER3,
-	MASTER_TABLE.REMARKS_APPROVER4,
-	MASTER_TABLE.CLAIM_STATUS,
-	MASTER_TABLE.SUBMITTED_ON,
-	MASTER_TABLE.SUBMITTED_BY,
-	MASTER_TABLE.FIRST_LEVEL_APPROVER,
-	MASTER_TABLE.FIRST_LEVEL_APPROVED_ON,
-	MASTER_TABLE.SECOND_LEVEL_APPROVER,
-	MASTER_TABLE.SECOND_LEVEL_APPROVED_ON,
-	MASTER_TABLE.THIRD_LEVEL_APPROVER,
-	MASTER_TABLE.THIRD_LEVEL_APPROVED_ON,
-	MASTER_TABLE.FOURTH_LEVEL_APPROVER,
-	MASTER_TABLE.FOURTH_LEVEL_APPROVED_ON
+	EXPORT_LOGS.Export_Reference as EXPORT_REFERENCE,
+	EXPORT_LOGS.Rep_Timestamp as EXPORT_DATETIME,
+	IMPORT_LOGS.Import_Timestamp as IMPORT_DATETIME
 };
 
 define view SMS_PAYMENT_REPORT as select from SDFC_LINEITEM_CLAIM as LINEITEM_TABLE1
@@ -2451,43 +2506,37 @@ left join sf.PerPersonal as PER_PERSON1
 on PER_PERSON1.personIdExternal = MASTER_TABLE1.EMPLOYEE_ID
 left join Claim_Code as CLAIM_CODE1
 on CLAIM_CODE1.Claim_code = LINEITEM_TABLE1.CLAIM_CODE
+left join EXPORT_DETAILS as EXPORT_LOGS1
+on EXPORT_LOGS1.Internal_Claim_Reference = LINEITEM_TABLE1.CLAIM_REFERENCE
+left join IMPORT_POSTING_DETAILS as IMPORT_LOGS1
+on IMPORT_LOGS1.Internal_Claim_Reference = LINEITEM_TABLE1.CLAIM_REFERENCE
 {
 key	MASTER_TABLE1.EMPLOYEE_ID, 
 	PER_PERSON1.firstName as EMPLOYEE_FIRST_NAME,
 	PER_PERSON1.lastName as EMPLOYEE_LAST_NAME,
+	PER_PERSON1.customString2 as EMPLOYEE_FULL_NAME,
 	MASTER_TABLE1.CLAIM_CATEGORY,
 	LINEITEM_TABLE1.CLAIM_CODE,
 	CLAIM_CODE1.Description as CLAIM_DESCRIPTION,
-	MASTER_TABLE1.ACC_NAME,
-	MASTER_TABLE1.ACC_NO,
-	MASTER_TABLE1.VENDOR_CODE,
-	MASTER_TABLE1.GL_ACCOUNT,
-	LINEITEM_TABLE1.POST_DATE,
 	MASTER_TABLE1.CLAIM_REFERENCE,
-key	LINEITEM_TABLE1.LINE_ITEM_REFERENCE_NUMBER,
+	MASTER_TABLE1.CLAIM_STATUS,
 	LINEITEM_TABLE1.ITEM_DESC,
-	LINEITEM_TABLE1.INVOICE_NUMBER,
 	LINEITEM_TABLE1.INVOICE_DATE,
+	LINEITEM_TABLE1.INVOICE_NUMBER,
 	LINEITEM_TABLE1.CURRENCY,
+	LINEITEM_TABLE1.CLAIM_AMOUNT,
 	LINEITEM_TABLE1.POST_CURRENCY,
 	LINEITEM_TABLE1.POST_CLAIM_AMOUNT,
+	LINEITEM_TABLE1.POST_DATE,
+key	LINEITEM_TABLE1.CLAIM_REFERENCE as LINE_ITEM_REFERENCE_NUMBER,
+	MASTER_TABLE1.ACC_NAME as BANK_ACCOUNT_NAME,
+	MASTER_TABLE1.ACC_NO as BANK_ACCOUNT_NUMBER,
+	MASTER_TABLE1.GL_ACCOUNT,
+	MASTER_TABLE1.VENDOR_CODE,
 	LINEITEM_TABLE1.ITEM_LINE_REMARKS_EMPLOYEE,
-	MASTER_TABLE1.REMARKS_EMPLOYEE,
-	MASTER_TABLE1.REMARKS_APPROVER1,
-	MASTER_TABLE1.REMARKS_APPROVER2,
-	MASTER_TABLE1.REMARKS_APPROVER3,
-	MASTER_TABLE1.REMARKS_APPROVER4,
-	MASTER_TABLE1.CLAIM_STATUS,
-	MASTER_TABLE1.SUBMITTED_ON,
-	MASTER_TABLE1.SUBMITTED_BY,
-	MASTER_TABLE1.FIRST_LEVEL_APPROVER,
-	MASTER_TABLE1.FIRST_LEVEL_APPROVED_ON,
-	MASTER_TABLE1.SECOND_LEVEL_APPROVER,
-	MASTER_TABLE1.SECOND_LEVEL_APPROVED_ON,
-	MASTER_TABLE1.THIRD_LEVEL_APPROVER,
-	MASTER_TABLE1.THIRD_LEVEL_APPROVED_ON,
-	MASTER_TABLE1.FOURTH_LEVEL_APPROVER,
-	MASTER_TABLE1.FOURTH_LEVEL_APPROVED_ON
+	EXPORT_LOGS1.Export_Reference as EXPORT_REFERENCE,
+	EXPORT_LOGS1.Rep_Timestamp as EXPORT_DATETIME,
+	IMPORT_LOGS1.Import_Timestamp as IMPORT_DATETIME
 }
 union all select from CPC_LINEITEM_CLAIM as LINEITEM_TABLE2
 inner join CPC_MASTER_CLAIM as MASTER_TABLE2
@@ -2496,43 +2545,37 @@ left join sf.PerPersonal as PER_PERSON2
 on PER_PERSON2.personIdExternal = MASTER_TABLE2.EMPLOYEE_ID
 left join Claim_Code as CLAIM_CODE2
 on CLAIM_CODE2.Claim_code = LINEITEM_TABLE2.CLAIM_CODE
+left join EXPORT_DETAILS as EXPORT_LOGS2
+on EXPORT_LOGS2.Internal_Claim_Reference = LINEITEM_TABLE2.CLAIM_REFERENCE
+left join IMPORT_POSTING_DETAILS as IMPORT_LOGS2
+on IMPORT_LOGS2.Internal_Claim_Reference = LINEITEM_TABLE2.CLAIM_REFERENCE
 {
 key	MASTER_TABLE2.EMPLOYEE_ID, 
 	PER_PERSON2.firstName as EMPLOYEE_FIRST_NAME,
 	PER_PERSON2.lastName as EMPLOYEE_LAST_NAME,
+	PER_PERSON2.customString2 as EMPLOYEE_FULL_NAME,
 	MASTER_TABLE2.CLAIM_CATEGORY,
 	LINEITEM_TABLE2.CLAIM_CODE,
 	CLAIM_CODE2.Description as CLAIM_DESCRIPTION,
-	MASTER_TABLE2.ACC_NAME,
-	MASTER_TABLE2.ACC_NO,
-	MASTER_TABLE2.VENDOR_CODE,
-	MASTER_TABLE2.GL_ACCOUNT,
-	LINEITEM_TABLE2.POST_DATE,
 	MASTER_TABLE2.CLAIM_REFERENCE,
-key	LINEITEM_TABLE2.LINE_ITEM_REFERENCE_NUMBER,
+	MASTER_TABLE2.CLAIM_STATUS,
 	LINEITEM_TABLE2.ITEM_DESC,
-	LINEITEM_TABLE2.INVOICE_NUMBER,
 	LINEITEM_TABLE2.INVOICE_DATE,
+	LINEITEM_TABLE2.INVOICE_NUMBER,
 	LINEITEM_TABLE2.CURRENCY,
+	LINEITEM_TABLE2.CLAIM_AMOUNT,
 	LINEITEM_TABLE2.POST_CURRENCY,
 	LINEITEM_TABLE2.POST_CLAIM_AMOUNT,
+	LINEITEM_TABLE2.POST_DATE,
+key	LINEITEM_TABLE2.CLAIM_REFERENCE as LINE_ITEM_REFERENCE_NUMBER,
+	MASTER_TABLE2.ACC_NAME as BANK_ACCOUNT_NAME,
+	MASTER_TABLE2.ACC_NO as BANK_ACCOUNT_NUMBER,
+	MASTER_TABLE2.GL_ACCOUNT,
+	MASTER_TABLE2.VENDOR_CODE,
 	LINEITEM_TABLE2.ITEM_LINE_REMARKS_EMPLOYEE,
-	MASTER_TABLE2.REMARKS_EMPLOYEE,
-	MASTER_TABLE2.REMARKS_APPROVER1,
-	MASTER_TABLE2.REMARKS_APPROVER2,
-	MASTER_TABLE2.REMARKS_APPROVER3,
-	MASTER_TABLE2.REMARKS_APPROVER4,
-	MASTER_TABLE2.CLAIM_STATUS,
-	MASTER_TABLE2.SUBMITTED_ON,
-	MASTER_TABLE2.SUBMITTED_BY,
-	MASTER_TABLE2.FIRST_LEVEL_APPROVER,
-	MASTER_TABLE2.FIRST_LEVEL_APPROVED_ON,
-	MASTER_TABLE2.SECOND_LEVEL_APPROVER,
-	MASTER_TABLE2.SECOND_LEVEL_APPROVED_ON,
-	MASTER_TABLE2.THIRD_LEVEL_APPROVER,
-	MASTER_TABLE2.THIRD_LEVEL_APPROVED_ON,
-	MASTER_TABLE2.FOURTH_LEVEL_APPROVER,
-	MASTER_TABLE2.FOURTH_LEVEL_APPROVED_ON
+	EXPORT_LOGS2.Export_Reference as EXPORT_REFERENCE,
+	EXPORT_LOGS2.Rep_Timestamp as EXPORT_DATETIME,
+	IMPORT_LOGS2.Import_Timestamp as IMPORT_DATETIME
 }
 union all select from OC_LINEITEM_CLAIM as LINEITEM_TABLE3
 inner join OC_MASTER_CLAIM as MASTER_TABLE3
@@ -2541,43 +2584,37 @@ left join sf.PerPersonal as PER_PERSON3
 on PER_PERSON3.personIdExternal = MASTER_TABLE3.EMPLOYEE_ID
 left join Claim_Code as CLAIM_CODE3
 on CLAIM_CODE3.Claim_code = LINEITEM_TABLE3.CLAIM_CODE
+left join EXPORT_DETAILS as EXPORT_LOGS3
+on EXPORT_LOGS3.Internal_Claim_Reference = LINEITEM_TABLE3.CLAIM_REFERENCE
+left join IMPORT_POSTING_DETAILS as IMPORT_LOGS3
+on IMPORT_LOGS3.Internal_Claim_Reference = LINEITEM_TABLE3.CLAIM_REFERENCE
 {
 key	MASTER_TABLE3.EMPLOYEE_ID, 
 	PER_PERSON3.firstName as EMPLOYEE_FIRST_NAME,
 	PER_PERSON3.lastName as EMPLOYEE_LAST_NAME,
+	PER_PERSON3.customString2 as EMPLOYEE_FULL_NAME,
 	MASTER_TABLE3.CLAIM_CATEGORY,
 	LINEITEM_TABLE3.CLAIM_CODE,
 	CLAIM_CODE3.Description as CLAIM_DESCRIPTION,
-	MASTER_TABLE3.ACC_NAME,
-	MASTER_TABLE3.ACC_NO,
-	MASTER_TABLE3.VENDOR_CODE,
-	MASTER_TABLE3.GL_ACCOUNT,
-	LINEITEM_TABLE3.POST_DATE,
 	MASTER_TABLE3.CLAIM_REFERENCE,
-key	LINEITEM_TABLE3.LINE_ITEM_REFERENCE_NUMBER,
+	MASTER_TABLE3.CLAIM_STATUS,
 	LINEITEM_TABLE3.ITEM_DESC,
-	LINEITEM_TABLE3.INVOICE_NUMBER,
 	LINEITEM_TABLE3.INVOICE_DATE,
+	LINEITEM_TABLE3.INVOICE_NUMBER,
 	LINEITEM_TABLE3.CURRENCY,
+	LINEITEM_TABLE3.CLAIM_AMOUNT,
 	LINEITEM_TABLE3.POST_CURRENCY,
 	LINEITEM_TABLE3.POST_CLAIM_AMOUNT,
+	LINEITEM_TABLE3.POST_DATE,
+key	LINEITEM_TABLE3.CLAIM_REFERENCE as LINE_ITEM_REFERENCE_NUMBER,
+	MASTER_TABLE3.ACC_NAME as BANK_ACCOUNT_NAME,
+	MASTER_TABLE3.ACC_NO as BANK_ACCOUNT_NUMBER,
+	MASTER_TABLE3.GL_ACCOUNT,
+	MASTER_TABLE3.VENDOR_CODE,
 	LINEITEM_TABLE3.ITEM_LINE_REMARKS_EMPLOYEE,
-	MASTER_TABLE3.REMARKS_EMPLOYEE,
-	MASTER_TABLE3.REMARKS_APPROVER1,
-	MASTER_TABLE3.REMARKS_APPROVER2,
-	MASTER_TABLE3.REMARKS_APPROVER3,
-	MASTER_TABLE3.REMARKS_APPROVER4,
-	MASTER_TABLE3.CLAIM_STATUS,
-	MASTER_TABLE3.SUBMITTED_ON,
-	MASTER_TABLE3.SUBMITTED_BY,
-	MASTER_TABLE3.FIRST_LEVEL_APPROVER,
-	MASTER_TABLE3.FIRST_LEVEL_APPROVED_ON,
-	MASTER_TABLE3.SECOND_LEVEL_APPROVER,
-	MASTER_TABLE3.SECOND_LEVEL_APPROVED_ON,
-	MASTER_TABLE3.THIRD_LEVEL_APPROVER,
-	MASTER_TABLE3.THIRD_LEVEL_APPROVED_ON,
-	MASTER_TABLE3.FOURTH_LEVEL_APPROVER,
-	MASTER_TABLE3.FOURTH_LEVEL_APPROVED_ON
+	EXPORT_LOGS3.Export_Reference as EXPORT_REFERENCE,
+	EXPORT_LOGS3.Rep_Timestamp as EXPORT_DATETIME,
+	IMPORT_LOGS3.Import_Timestamp as IMPORT_DATETIME
 }
-union all select from SMS_PAY_UP_PAYMENT_REPORT {*};
+union all select from SMS_PAY_UP_PAYMENT_REPORT {*}; 
 }

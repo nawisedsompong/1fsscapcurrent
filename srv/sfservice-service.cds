@@ -62,10 +62,10 @@ service sfservice @(path:'/sfservice')@(impl:'./sfservice-service.js')
 	};
 	entity Replication_Logs as projection on sf.Replication_Logs;
 	entity SMS_Replication_Logs as projection on sf.SMS_Replication_Logs;
-	entity SMS_Excel_Upload as projection on sf.SMS_Excel_Upload;
-	entity SMS_Excel_Upload_Logs as projection on sf.SMS_Excel_Upload_Logs;
+	entity SMS_Import_Posting_Upload as projection on sf.SMS_Import_Posting_Upload;
+	entity SMS_Import_Posting_Upload_Logs as projection on sf.SMS_Import_Posting_Upload_Logs;
 	entity PER_NATIONALID as projection on sf.PER_NATIONALID;
-	function exportChargeOutExcelReport(Cluster: String, Scholarship_Scheme: String, Year_Of_Award: String(4), Scholar_Status: String, From_Date: Date, To_Date: Date) returns String;
+	// function exportChargeOutExcelReport(Cluster: String, Scholarship_Scheme: String, Year_Of_Award: String(4), Scholar_Status: String, From_Date: Date, To_Date: Date) returns String;
 	
 	function SFEMPJobCPIDelete(userid:String) returns String;
 	
@@ -111,4 +111,5 @@ service sfservice @(path:'/sfservice')@(impl:'./sfservice-service.js')
         PAYGRADE_DESC: String(150);
     };
 	action masterDataSync(DIVISION: array of division_type, DEPARTMENT: array of department_type, PA: array of personal_area_type, PSA: array of personal_sub_area_type, SPECIALISATION: array of specialisation_type, SPONSOR: array of sponsor_type, PAY_GRADE: array of paygrade_type) returns { message: String };
+	action automatedSMSImportPosting(CLAIMS: array of { FILE_NAME: String(100); COMPANY_CODE: String(50); FI_DOCUMENT_NUMBER: String(50); FISCAL_YEAR: String(4); POSTING_DATE: String(15); VENDOR_ACCOUNT: String(50); ASSIGNMENT: String(100); AMOUNT_LOCAL_CURRENCY_SGD: String(50); REFERENCE: String(100); ITEM_TEXT: String; REMARKS: String; }) returns { message: String };
 }

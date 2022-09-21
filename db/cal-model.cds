@@ -195,6 +195,110 @@ entity PRORATED_CLAIMS_YTD2 as
 		beClmDiv.Division_Desc
    	};
    	
+define view Claim_Coordinator_ytd with parameters claim_Cordinator:String(20) as select from be.claim_coord_employee(claim_Cordinator: :claim_Cordinator) as claim_coord
+inner join PRORATED_CLAIMS_YTD2 as YTD
+ON YTD.EMPLOYEE = claim_coord.EmployeeID{
+		YTD.EMPLOYEE,
+		YTD.NAME,
+		YTD.CLAIM_CODE_VALUE,
+		YTD.YEAR,
+		YTD.DESCRIPTION,
+		YTD.YTD_OTHER,
+		YTD.YTD_CONSULT,
+		YTD.YTD_WARD_CHARGE,
+		YTD.YTD_HOSPITAL_FEE,
+		YTD.PENDING_AMOUNT,
+		YTD.TAKEN_AMOUNT,
+		YTD.BALANCE,
+		YTD.ENTITLEMENT,
+    	YTD.UNIT,
+		YTD.Adjustment,
+		YTD.startDate,
+		YTD.endDate,
+		YTD.BE_REF_DATE,
+		YTD.PAY_GRADE,
+		YTD.PERSONAL_AREA,
+		YTD.PERSONAL_SUB_AREA,
+		YTD.DEPARMENT,
+		YTD.Department_Desc,
+		YTD.DIVISION,
+		YTD.Division_Desc
+};
+   	
+define view MEDISAVE_REPORT as select from PRORATED_CLAIMS_YTD as prorated
+inner join MEDISAVE_CLAIM_CODE as medclaimcode
+on prorated.CLAIM_CODE_VALUE = medclaimcode.Claim_code
+left join MEDISAVE_DEPEN_REPORT as meddep_report
+on prorated.CLAIM_CODE_VALUE = meddep_report.Self_Claim_code
+and prorated.EMPLOYEE = meddep_report.EMPLOYEE
+AND prorated.YEAR = meddep_report.YEAR
+inner join sf.PerPersonalView as empName
+on empName.personIdExternal = prorated.EMPLOYEE
+inner join sf.EmpJob as EmpJob
+on prorated.EMPLOYEE = EmpJob.userId
+and EmpJob.startDate <= $now
+and EmpJob.endDate >= $now
+{
+	prorated.CLAIM_CODE_VALUE,
+	prorated.ENTITLEMENT,
+	prorated.TAKEN_AMOUNT,
+	prorated.PENDING_AMOUNT,
+	prorated.YEAR,
+	prorated.EMPLOYEE,
+	prorated.BALANCE,
+	CASE WHEN prorated.BALANCE < 0  then 0
+	else round(prorated.BALANCE * 50/100) end as MEDISAVE_CREDIT : Decimal(10,2),
+	empName.fullName as EMPLOYEE_NAME,
+	meddep_report.ENTITLEMENT as DEPENDENT_ENTITLMENT
+}
+where EmpJob.company = 'MOHH';
+   
+define view MEDISAVE_DEPEN_REPORT as select from PRORATED_CLAIMS_YTD as prorated
+inner join MEDISAVE_WITHDEPCLAIM_CODE as meddepclaimcode
+on prorated.CLAIM_CODE_VALUE = meddepclaimcode.Claim_code{
+	prorated.CLAIM_CODE_VALUE,
+	prorated.ENTITLEMENT,
+	prorated.TAKEN_AMOUNT,
+	prorated.PENDING_AMOUNT,
+	prorated.YEAR,
+	prorated.EMPLOYEE,
+	prorated.BALANCE,
+	meddepclaimcode.Self_Claim_code
+};
+   
+define view MEDISAVE_CLAIM_CODE as select from be.Company_Claim_Category as Category
+left join MEDISAVE_DEPEND_CODE as dependents
+ON Category.Claim_code = dependents.Dependent_Claim_Code
+{
+	Category.Claim_code
+}
+WHERE Category.Category_Code = 'MC' 
+AND Category.Company = 'MOHH' 
+AND dependents.Dependent_Claim_Code IS NULL
+and Category.Claim_code not like '%_EFMR'
+and Category.Claim_code <> 'VCMMR' and Category.Claim_code <> 'VCTDAP' ;
+
+define view MEDISAVE_WITHDEPCLAIM_CODE as select from be.Company_Claim_Category as Category
+left join MEDISAVE_DEPEND_CODE as dependents
+ON Category.Claim_code = dependents.Dependent_Claim_Code
+{
+	Category.Claim_code,
+	dependents.Claim_Code as Self_Claim_code
+}
+WHERE Category.Category_Code = 'MC' 
+AND Category.Company = 'MOHH' 
+AND dependents.Dependent_Claim_Code IS NOT NULL
+and Category.Claim_code not like '%_EFMR'
+and Category.Claim_code <> 'VCMMR' and Category.Claim_code <> 'VCTDAP' ;
+
+define view MEDISAVE_DEPEND_CODE as select from be.Benefit_Claim_Admin
+{
+	Dependent_Claim_Code,
+	Claim_Code
+}
+where Claim_Category = 'MC' and Dependent_Claim_Code is not null AND Company= 'MOHH'
+and Start_Date <= $now and End_Date >= $now;
+   
 entity THREAD_JOB_INFO {
 
    key id:Integer;
@@ -237,6 +341,15 @@ entity PAY_UP {
 	   ITEM_LINE_REMARKS_EMPLOYEE: String(500) @assert.format: '^(?![+=@-]).*'; //CSV INJECTION PREVENTION
 }
 
+entity EXPORT_REPORT_STATUS {
+	key EXPORT_REPORT_ID: String(50);
+		FILE_GEN_TIMESTAMP: DateTime;
+		FILE_NAME: String(50);
+		REPORT_TYPE: String(20);
+		STATUS: String(20);
+	    FILE_BASE64 : LargeString;
+}
+
 }
 
 @cds.persistence.calcview
@@ -247,3 +360,4 @@ entity EMPLOYEE_HR_CHECKER (EMPLOYEE_ID:String(50),CLAIMCODE:String(13),HR_MAKER
 	USERID_HR_MAKER: String(50); 
 	SPECIALISATION: String(100); 
   }
+  

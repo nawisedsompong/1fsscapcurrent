@@ -15,7 +15,8 @@ module.exports = async(srv) => {
 		SMS_Replication_Logs,
 		Replication_Logs,
 		EmpJob,
-		SMS_Excel_Upload,
+		SMS_Import_Posting_Upload,
+		SMS_Import_Posting_Upload_Logs,
 		SMS_Excel_Upload_Logs
 	} = srv.entities('sf');
 	
@@ -46,7 +47,7 @@ module.exports = async(srv) => {
 		}
 	});
 	
-	srv.on('exportChargeOutExcelReport', async (req) => {
+	/*srv.on('exportChargeOutExcelReport', async (req) => {
 		let filters = validateFilterValues(req);
 		const tx = cds.transaction(req);
 		const tableWithLineItem = [{
@@ -99,11 +100,13 @@ module.exports = async(srv) => {
 			return req.reject(400, "Invalid Year of Award value.");
 		}
 		return filters;
-	}
+	}*/
 	
-	srv.on('UPDATE', 'SMS_Excel_Upload', async(req, res) => {
-		var IDKey = req.data.id;
-		var userEmail = req.user.id;
+	srv.on('UPDATE', 'SMS_Import_Posting_Upload', async(req, res) => {
+		var postingType = req.data.id;
+		if (postingType !== 'M') {
+			req.reject(400, 'Invalid ID parameter. It must be "M"');
+		}
 		if (req.data.content) {
 			const contentType = req._.req.headers['content-type'];
 			var content, workSheetsFromBuffer, rowArray = [],
@@ -157,6 +160,13 @@ module.exports = async(srv) => {
 								} else {
 									result[key] = '';
 								}
+							} else if (key === 'Invoice_Number') {
+								if (rowArray[i][j]) {
+									rowArray[i][j] = rowArray[i][j].toString();
+									result[key] = rowArray[i][j];
+								} else {
+									result[key] = '';
+								}
 							} else {
 								if (!rowArray[i][j]) {
 									result[key] = '';
@@ -169,99 +179,88 @@ module.exports = async(srv) => {
 					}
 					console.log(entries);
 				}
+				
 				let entriesUniqueByExportReference = [...new Map(entries.map(item => [item.Export_Reference, item])).values()];
 				entries = entriesUniqueByExportReference;
-				
-				var tx = cds.transaction(req);
-				await tx.begin();
-				var logs = [], currency = 'SGD', employeeId = '';
-				var userResult = await tx.run(`
-					SELECT "PERSONIDEXTERNAL" FROM "SF_PEREMAIL" WHERE "EMAILADDRESS"='${userEmail}'
-				`);
-				if (userResult.length > 0 && userResult[0].PERSONIDEXTERNAL) {
-					employeeId = userResult[0].PERSONIDEXTERNAL;
-				}
-				for (var k = 0; k < entries.length; k++) {
-					try {
-						var repLogsResult = await tx.run(
-						`SELECT DISTINCT
-							"INTERNAL_CLAIM_REFERENCE",
-							"MASTER_TABLE_NAME",
-							"LINEITEM_TABLE_NAME"
-						 FROM "SF_SMS_REPLICATION_LOGS"
-						 WHERE "EXPORT_REFERENCE"='${entries[k].Export_Reference}' AND 
-							   "REP_STATUS"='Success'`	
-						);
-						if (repLogsResult.length === 0) {
-							logs.push({
-								Log_Id: generateRandomID(),
-								Timestamp: new Date(),
-								Employee_ID: employeeId,
-								Posting_Date: entries[k].Posting_Date,
-								Posting_Amount: entries[k].Posting_Amount,
-								Invoice_Number: entries[k].Invoice_Number,
-								Currency: currency,
-								Export_Reference: entries[k].Export_Reference,
-								Internal_Claim_Reference: '',
-								Status: 'Error',
-								Message: 'EXPORT_REFERENCE not found in replication logs.'
-							});
-						} else if (!repLogsResult[0].MASTER_TABLE_NAME || !repLogsResult[0].LINEITEM_TABLE_NAME) {
-							logs.push({
-								Log_Id: generateRandomID(),
-								Timestamp: new Date(),
-								Employee_ID: employeeId,
-								Posting_Date: entries[k].Posting_Date,
-								Posting_Amount: entries[k].Posting_Amount,
-								Invoice_Number: entries[k].Invoice_Number,
-								Currency: currency,
-								Export_Reference: entries[k].Export_Reference,
-								Internal_Claim_Reference: '',
-								Status: 'Error',
-								Message: 'Table name is not maintained correctly in replication logs.'
-							});
-						} else {
-							var claimExist = await tx.run(`SELECT "CLAIM_REFERENCE" FROM "${repLogsResult[0].LINEITEM_TABLE_NAME}" WHERE "CLAIM_REFERENCE"='${repLogsResult[0].INTERNAL_CLAIM_REFERENCE}'`);
-							if (claimExist.length === 0) {
-								logs.push({
-									Log_Id: generateRandomID(),
-									Timestamp: new Date(),
-									Employee_ID: employeeId,
-									Posting_Date: entries[k].Posting_Date,
-									Posting_Amount: entries[k].Posting_Amount,
-									Invoice_Number: entries[k].Invoice_Number,
-									Currency: currency,
-									Export_Reference: entries[k].Export_Reference,
-									Internal_Claim_Reference: '',
-									Status: 'Error',
-									Message: `CLAIM_REFERENCE not found in ${repLogsResult[0].LINEITEM_TABLE_NAME} table.`
-								});
-							} else {
-								await tx.run(
-									`UPDATE "${repLogsResult[0].LINEITEM_TABLE_NAME}" 
-									 SET "POST_CLAIM_AMOUNT"='${entries[k].Posting_Amount}', "POST_DATE"='${entries[k].Posting_Date}', "POST_CURRENCY"='${currency}'
-	        						 WHERE "CLAIM_REFERENCE"='${repLogsResult[0].INTERNAL_CLAIM_REFERENCE}'`
-								);
-								logs.push({
-									Log_Id: generateRandomID(),
-									Timestamp: new Date(),
-									Employee_ID: employeeId,
-									Posting_Date: entries[k].Posting_Date,
-									Posting_Amount: entries[k].Posting_Amount,
-									Invoice_Number: entries[k].Invoice_Number,
-									Currency: currency,
-									Export_Reference: entries[k].Export_Reference,
-									Internal_Claim_Reference: repLogsResult[0].INTERNAL_CLAIM_REFERENCE,
-									Status: 'Success',
-									Message: 'Updated successfully.'
-								});
-							}
-						}
-					} catch (err) {
-						await tx.run(INSERT.into(SMS_Excel_Upload_Logs).entries({
+				await manualImportPosting(req, entries);
+			});
+			req.data.content.pipe(stream);
+		} else {
+			return next()
+		}
+	});
+	
+	async function manualImportPosting(req, entries) {
+		var userEmail = req.user.id;
+		let convertedCurrentDate = convertTimeZone(new Date(), 'Asia/Singapore');
+		var tx = cds.transaction(req);
+		await tx.begin();
+		var logs = [], currency = 'SGD', employeeId = '', employeeName = '';
+		var userResult = await tx.run(`
+			SELECT 
+				"PER_EMAIL"."PERSONIDEXTERNAL",
+				"PER_PERSON"."CUSTOMSTRING2" AS "EMPLOYEE_NAME"
+			FROM "SF_PEREMAIL" AS "PER_EMAIL"
+			LEFT JOIN "SF_PERPERSONAL" AS "PER_PERSON"
+			ON "PER_EMAIL"."PERSONIDEXTERNAL"="PER_PERSON"."PERSONIDEXTERNAL"
+			WHERE "EMAILADDRESS"='${userEmail}'
+		`);
+		if (userResult.length > 0 && userResult[0].PERSONIDEXTERNAL) {
+			employeeId = userResult[0].PERSONIDEXTERNAL;
+			employeeName = userResult[0].EMPLOYEE_NAME;
+		}
+		for (var k = 0; k < entries.length; k++) {
+			try {
+				var repLogsResult = await tx.run(
+				`SELECT DISTINCT
+					"INTERNAL_CLAIM_REFERENCE",
+					"MASTER_CLAIM_REFERENCE",
+					"CATEGORY_CODE",
+					"MASTER_TABLE_NAME",
+					"LINEITEM_TABLE_NAME"
+				 FROM "SF_SMS_REPLICATION_LOGS"
+				 WHERE "EXPORT_REFERENCE"='${entries[k].Export_Reference}' AND 
+					   "REP_STATUS"='Success'`	
+				);
+				if (repLogsResult.length === 0) {
+					logs.push({
+						Log_Id: generateRandomID(),
+						Timestamp: dateTimeFormat(convertedCurrentDate),
+						Employee_ID: employeeId,
+						Employee_Name: employeeName,
+						Posting_Date: entries[k].Posting_Date,
+						Posting_Amount: entries[k].Posting_Amount,
+						Invoice_Number: entries[k].Invoice_Number,
+						Currency: currency,
+						Export_Reference: entries[k].Export_Reference,
+						Master_Claim_Reference: '',
+						Internal_Claim_Reference: '',
+						Status: 'Error',
+						Message: 'EXPORT_REFERENCE not found in the system.'
+					});
+				} else if (!repLogsResult[0].MASTER_TABLE_NAME || !repLogsResult[0].LINEITEM_TABLE_NAME) {
+					logs.push({
+						Log_Id: generateRandomID(),
+						Timestamp: dateTimeFormat(convertedCurrentDate),
+						Employee_ID: employeeId,
+						Employee_Name: employeeName,
+						Posting_Date: entries[k].Posting_Date,
+						Posting_Amount: entries[k].Posting_Amount,
+						Invoice_Number: entries[k].Invoice_Number,
+						Currency: currency,
+						Export_Reference: entries[k].Export_Reference,
+						Internal_Claim_Reference: '',
+						Status: 'Error',
+						Message: 'Table name is not maintained correctly in replication logs.'
+					});
+				} else {
+					var claimExist = await tx.run(`SELECT "CLAIM_REFERENCE","ITEM_LINE_REMARKS_EMPLOYEE" FROM "${repLogsResult[0].LINEITEM_TABLE_NAME}" WHERE "CLAIM_REFERENCE"='${repLogsResult[0].INTERNAL_CLAIM_REFERENCE}'`);
+					if (claimExist.length === 0) {
+						logs.push({
 							Log_Id: generateRandomID(),
-							Timestamp: new Date(),
+							Timestamp: dateTimeFormat(convertedCurrentDate),
 							Employee_ID: employeeId,
+							Employee_Name: employeeName,
 							Posting_Date: entries[k].Posting_Date,
 							Posting_Amount: entries[k].Posting_Amount,
 							Invoice_Number: entries[k].Invoice_Number,
@@ -269,19 +268,252 @@ module.exports = async(srv) => {
 							Export_Reference: entries[k].Export_Reference,
 							Internal_Claim_Reference: '',
 							Status: 'Error',
-							Message: err.message
-						}));
+							Message: `LINE_ITEM_REFERENCE not found in the system.`
+						});
+					} else {
+						let querySubStr = '';
+						if (repLogsResult[0].LINEITEM_TABLE_NAME === 'BENEFIT_SDFC_LINEITEM_CLAIM') {
+							querySubStr = `, "CLAIM_AMOUNT_SGD"='${entries[k].Posting_Amount}'`;
+						}
+						await tx.run(
+							`UPDATE "${repLogsResult[0].LINEITEM_TABLE_NAME}" 
+							 SET "POST_CLAIM_AMOUNT"='${entries[k].Posting_Amount}', "POST_DATE"='${entries[k].Posting_Date}', "POST_CURRENCY"='${currency}' ${querySubStr}
+    						 WHERE "CLAIM_REFERENCE"='${repLogsResult[0].INTERNAL_CLAIM_REFERENCE}'`
+						);
+						if (!claimExist[0].ITEM_LINE_REMARKS_EMPLOYEE) {
+							claimExist[0].ITEM_LINE_REMARKS_EMPLOYEE = 'N/A';
+						}
+						logs.push({
+							Log_Id: generateRandomID(),
+							Timestamp: dateTimeFormat(convertedCurrentDate),
+							Employee_ID: employeeId,
+							Employee_Name: employeeName,
+							Posting_Date: entries[k].Posting_Date,
+							Posting_Amount: entries[k].Posting_Amount,
+							Invoice_Number: entries[k].Invoice_Number,
+							Item_Description: claimExist[0].ITEM_LINE_REMARKS_EMPLOYEE,
+							Currency: currency,
+							Export_Reference: entries[k].Export_Reference,
+							Internal_Claim_Reference: repLogsResult[0].INTERNAL_CLAIM_REFERENCE,
+							Master_Claim_Reference: repLogsResult[0].MASTER_CLAIM_REFERENCE,
+							Category_Code: repLogsResult[0].CATEGORY_CODE,
+							Status: 'Success',
+							Message: 'Updated successfully.'
+						});
 					}
 				}
-				if (logs.length > 0) {
-					await tx.run(INSERT.into(SMS_Excel_Upload_Logs).entries(logs));
-				}
-				await tx.commit();
-			});
-			req.data.content.pipe(stream);
-		} else {
-			return next()
+			} catch (err) {
+				await tx.run(INSERT.into(SMS_Excel_Upload_Logs).entries({
+					Log_Id: generateRandomID(),
+					Timestamp: dateTimeFormat(convertedCurrentDate),
+					Employee_ID: employeeId,
+					Employee_Name: employeeName,
+					Posting_Date: entries[k].Posting_Date,
+					Posting_Amount: entries[k].Posting_Amount,
+					Invoice_Number: entries[k].Invoice_Number,
+					Currency: currency,
+					Export_Reference: entries[k].Export_Reference,
+					Internal_Claim_Reference: '',
+					Status: 'Error',
+					Message: err.message
+				}));
+			}
 		}
+		if (logs.length > 0) {
+			await tx.run(INSERT.into(SMS_Import_Posting_Upload_Logs).entries(logs));
+		}
+		await tx.commit();
+		return;
+	}
+	
+	srv.on('automatedSMSImportPosting', async (req, res) => {
+		var entries = req.data.CLAIMS;
+		let convertedCurrentDate = convertTimeZone(new Date(), 'Asia/Singapore');
+		var tx = cds.transaction(req);
+		var logs = [], currency = 'SGD', employeeId = 'System';
+		for (var k = 0; k < entries.length; k++) {
+			try {
+				if (entries[k].FI_DOCUMENT_NUMBER) {
+					entries[k].FI_DOCUMENT_NUMBER = entries[k].FI_DOCUMENT_NUMBER.toString();
+				}
+				if (entries[k].FISCAL_YEAR) {
+					entries[k].FISCAL_YEAR = entries[k].FISCAL_YEAR.toString();
+				}
+				if (entries[k].POSTING_DATE) {
+					entries[k].POSTING_DATE = entries[k].POSTING_DATE.toString();
+					entries[k].POSTING_DATE = entries[k].POSTING_DATE.substring(0,4) + '-' + entries[k].POSTING_DATE.substring(4,6)  + '-' + entries[k].POSTING_DATE.substring(6,8);
+				}
+				if (entries[k].AMOUNT_LOCAL_CURRENCY_SGD) {
+					entries[k].AMOUNT_LOCAL_CURRENCY_SGD = parseFloat(entries[k].AMOUNT_LOCAL_CURRENCY_SGD);
+				}
+				if (entries[k].REFERENCE) {
+					entries[k].REFERENCE = entries[k].REFERENCE.toString();
+				}
+				if (entries[k].ITEM_TEXT) {
+					entries[k].ITEM_TEXT = entries[k].ITEM_TEXT.toString();
+				}
+				if (entries[k].REMARKS) {
+					entries[k].REMARKS = entries[k].REMARKS.toString();
+					logs.push({
+						Log_Id: generateRandomID(),
+						Timestamp: dateTimeFormat(convertedCurrentDate),
+						Employee_ID: employeeId,
+						Posting_Date: entries[k].POSTING_DATE,
+						Posting_Amount: entries[k].AMOUNT_LOCAL_CURRENCY_SGD,
+						File_Name: entries[k].FILE_NAME,
+						Company_Code: entries[k].COMPANY_CODE,
+						FI_Document_No: entries[k].FI_DOCUMENT_NUMBER,
+						Fiscal_Year: entries[k].FISCAL_YEAR,
+						Invoice_Number: entries[k].REFERENCE,
+						Item_Description: entries[k].ITEM_TEXT,
+						Remarks: entries[k].REMARKS,
+						Currency: currency,
+						Export_Reference: entries[k].ASSIGNMENT,
+						Master_Claim_Reference: '',
+						Internal_Claim_Reference: '',
+						Status: 'Error',
+						Message: entries[k].REMARKS
+					});
+					continue;
+				}
+			
+				var repLogsResult = await tx.run(
+				`SELECT DISTINCT
+					"INTERNAL_CLAIM_REFERENCE",
+					"MASTER_CLAIM_REFERENCE",
+					"CATEGORY_CODE",
+					"MASTER_TABLE_NAME",
+					"LINEITEM_TABLE_NAME"
+				 FROM "SF_SMS_REPLICATION_LOGS"
+				 WHERE "EXPORT_REFERENCE"='${entries[k].ASSIGNMENT}' AND 
+					   "REP_STATUS"='Success'`	
+				);
+				if (repLogsResult.length === 0) {
+					logs.push({
+						Log_Id: generateRandomID(),
+						Timestamp: dateTimeFormat(convertedCurrentDate),
+						Employee_ID: employeeId,
+						Posting_Date: entries[k].POSTING_DATE,
+						Posting_Amount: entries[k].AMOUNT_LOCAL_CURRENCY_SGD,
+						File_Name: entries[k].FILE_NAME,
+						Company_Code: entries[k].COMPANY_CODE,
+						FI_Document_No: entries[k].FI_DOCUMENT_NUMBER,
+						Fiscal_Year: entries[k].FISCAL_YEAR,
+						Invoice_Number: entries[k].REFERENCE,
+						Item_Description: entries[k].ITEM_TEXT,
+						Currency: currency,
+						Export_Reference: entries[k].ASSIGNMENT,
+						Master_Claim_Reference: '',
+						Internal_Claim_Reference: '',
+						Status: 'Error',
+						Message: 'EXPORT_REFERENCE not found in the system.'
+					});
+				} else if (!repLogsResult[0].MASTER_TABLE_NAME || !repLogsResult[0].LINEITEM_TABLE_NAME) {
+					logs.push({
+						Log_Id: generateRandomID(),
+						Timestamp: dateTimeFormat(convertedCurrentDate),
+						Employee_ID: employeeId,
+						Posting_Date: entries[k].POSTING_DATE,
+						Posting_Amount: entries[k].AMOUNT_LOCAL_CURRENCY_SGD,
+						File_Name: entries[k].FILE_NAME,
+						Company_Code: entries[k].COMPANY_CODE,
+						FI_Document_No: entries[k].FI_DOCUMENT_NUMBER,
+						Fiscal_Year: entries[k].FISCAL_YEAR,
+						Invoice_Number: entries[k].REFERENCE,
+						Item_Description: entries[k].ITEM_TEXT,
+						Currency: currency,
+						Export_Reference: entries[k].ASSIGNMENT,
+						Internal_Claim_Reference: '',
+						Status: 'Error',
+						Message: 'Table name is not maintained correctly in replication logs.'
+					});
+				} else {
+					var claimExist = await tx.run(`SELECT "CLAIM_REFERENCE" FROM "${repLogsResult[0].LINEITEM_TABLE_NAME}" WHERE "CLAIM_REFERENCE"='${repLogsResult[0].INTERNAL_CLAIM_REFERENCE}'`);
+					if (claimExist.length === 0) {
+						logs.push({
+							Log_Id: generateRandomID(),
+							Timestamp: dateTimeFormat(convertedCurrentDate),
+							Employee_ID: employeeId,
+							Posting_Date: entries[k].POSTING_DATE,
+							Posting_Amount: entries[k].AMOUNT_LOCAL_CURRENCY_SGD,
+							File_Name: entries[k].FILE_NAME,
+							Company_Code: entries[k].COMPANY_CODE,
+							FI_Document_No: entries[k].FI_DOCUMENT_NUMBER,
+							Fiscal_Year: entries[k].FISCAL_YEAR,
+							Invoice_Number: entries[k].REFERENCE,
+							Item_Description: entries[k].ITEM_TEXT,
+							Currency: currency,
+							Export_Reference: entries[k].ASSIGNMENT,
+							Internal_Claim_Reference: '',
+							Status: 'Error',
+							Message: `LINE_ITEM_REFERENCE not found in the system.`
+						});
+					} else {
+						let querySubStr = '';
+						if (repLogsResult[0].LINEITEM_TABLE_NAME === 'BENEFIT_SDFC_LINEITEM_CLAIM') {
+							querySubStr = `, "CLAIM_AMOUNT_SGD"='${entries[k].AMOUNT_LOCAL_CURRENCY_SGD}'`;
+						}
+						await tx.run(
+							`UPDATE "${repLogsResult[0].LINEITEM_TABLE_NAME}" 
+							 SET "POST_CLAIM_AMOUNT"='${entries[k].AMOUNT_LOCAL_CURRENCY_SGD}', "POST_DATE"='${entries[k].POSTING_DATE}', "POST_CURRENCY"='${currency}' ${querySubStr}
+    						 WHERE "CLAIM_REFERENCE"='${repLogsResult[0].INTERNAL_CLAIM_REFERENCE}'`
+						);
+						logs.push({
+							Log_Id: generateRandomID(),
+							Timestamp: dateTimeFormat(convertedCurrentDate),
+							Employee_ID: employeeId,
+							Posting_Date: entries[k].POSTING_DATE,
+							Posting_Amount: entries[k].AMOUNT_LOCAL_CURRENCY_SGD,
+							File_Name: entries[k].FILE_NAME,
+							Company_Code: entries[k].COMPANY_CODE,
+							FI_Document_No: entries[k].FI_DOCUMENT_NUMBER,
+							Fiscal_Year: entries[k].FISCAL_YEAR,
+							Invoice_Number: entries[k].REFERENCE,
+							Item_Description: entries[k].ITEM_TEXT,
+							Currency: currency,
+							Export_Reference: entries[k].ASSIGNMENT,
+							Internal_Claim_Reference: repLogsResult[0].INTERNAL_CLAIM_REFERENCE,
+							Master_Claim_Reference: repLogsResult[0].MASTER_CLAIM_REFERENCE,
+							Category_Code: repLogsResult[0].CATEGORY_CODE,
+							Status: 'Success',
+							Message: 'Updated successfully.'
+						});
+					}
+				}
+			} catch (err) {
+				if (entries[k].REMARKS) {
+					entries[k].REMARKS = entries[k].REMARKS.toString();
+				} else {
+					entries[k].REMARKS = '';
+				}
+				await tx.run(INSERT.into(SMS_Excel_Upload_Logs).entries({
+					Log_Id: generateRandomID(),
+					Timestamp: dateTimeFormat(convertedCurrentDate),
+					Employee_ID: employeeId,
+					Posting_Date: entries[k].POSTING_DATE,
+					Posting_Amount: entries[k].AMOUNT_LOCAL_CURRENCY_SGD,
+					File_Name: entries[k].FILE_NAME,
+					Company_Code: entries[k].COMPANY_CODE,
+					FI_Document_No: entries[k].FI_DOCUMENT_NUMBER,
+					Fiscal_Year: entries[k].FISCAL_YEAR,
+					Invoice_Number: entries[k].REFERENCE,
+					Item_Description: entries[k].ITEM_TEXT,
+					Remarks: entries[k].REMARKS,
+					Currency: currency,
+					Export_Reference: entries[k].ASSIGNMENT,
+					Internal_Claim_Reference: '',
+					Status: 'Error',
+					Message: err.message
+				}));
+			}
+		}
+		if (logs.length > 0) {
+			console.log('Automated Import Posting Logs:', logs);
+			await tx.run(INSERT.into(SMS_Import_Posting_Upload_Logs).entries(logs));
+		}
+		return {
+			message: 'Successfully Imported.'
+		};
 	});
 	
 	srv.on('SFReplicationSMSClaim', async(req) => {
@@ -330,7 +562,10 @@ module.exports = async(srv) => {
 						if (remarks) {
 							remarks = remarks.replace(/[\n\r]+/g, '');
 							remarks = remarks.replace(/\s{2,10}/g, ' ');
-							remarks = remarks.replaceAll('"', '""');
+							let replacer = new RegExp('"', 'g');
+							remarks = remarks.replace(replacer, '""');
+						} else {
+							remarks = 'N/A';
 						}
 						let scholarName = '';
 						result1[l].CLAIM_AMOUNT = (result1[l].CLAIM_AMOUNT && parseFloat(result1[l].CLAIM_AMOUNT) < 0) ? parseFloat(-result1[l].CLAIM_AMOUNT).toString() : result1[l].CLAIM_AMOUNT;
@@ -338,6 +573,8 @@ module.exports = async(srv) => {
 							logs.push({
 								Rep_Log_ID: generateRandomID(),
 								Rep_Timestamp: new Date(),
+								Category_Code: result1[l].MASTER_CATEGORY_CODE,
+								Master_Claim_Reference: result1[l].MASTER_CLAIM_REFERENCE,
 								Internal_Claim_Reference: claimReference,
 								Claim_Status: result1[l].CLAIM_STATUS,
 								Rep_Status: 'Error',
@@ -404,6 +641,8 @@ module.exports = async(srv) => {
 						logs.push({
 							Rep_Log_ID: generateRandomID(),
 							Rep_Timestamp: new Date(),
+							Category_Code: result1[l].MASTER_CATEGORY_CODE,
+							Master_Claim_Reference: result1[l].MASTER_CLAIM_REFERENCE,
 							Internal_Claim_Reference: claimReference,
 							Export_Reference: exportRefNum,
 							Claim_Status: result1[l].CLAIM_STATUS,
@@ -431,6 +670,8 @@ module.exports = async(srv) => {
 						logs.push({
 							Rep_Log_ID: generateRandomID(),
 							Rep_Timestamp: new Date(),
+							Category_Code: result1[l].MASTER_CATEGORY_CODE,
+							Master_Claim_Reference: result1[l].MASTER_CLAIM_REFERENCE,
 							Internal_Claim_Reference: claimReference,
 							Export_Reference: exportRefNum,
 							Claim_Status: result1[l].CLAIM_STATUS, 
@@ -475,10 +716,12 @@ module.exports = async(srv) => {
 		let result = await tx.run(
 			`SELECT 
 				"CLAIM_LINEITEM".*,
+				"CLAIM_MASTER"."CLAIM_REFERENCE" AS "MASTER_CLAIM_REFERENCE",
+				"CLAIM_MASTER"."CATEGORY_CODE" AS "MASTER_CATEGORY_CODE",
 				"CLAIM_MASTER"."CLAIM_STATUS" ${querySubStr}
 			FROM "${table.lineItemTable}" AS "CLAIM_LINEITEM"
 			INNER JOIN "${table.masterTable}" AS "CLAIM_MASTER"
-			ON "CLAIM_LINEITEM"."PARENT_CLAIM_REFERENCE" = "CLAIM_MASTER"."CLAIM_REFERENCE" AND "CLAIM_MASTER"."CLAIM_STATUS"='Approved'
+			ON "CLAIM_LINEITEM"."PARENT_CLAIM_REFERENCE" = "CLAIM_MASTER"."CLAIM_REFERENCE" AND "CLAIM_MASTER"."CLAIM_STATUS"='Approved' AND "CLAIM_LINEITEM"."CLAIM_CODE" NOT IN ('PUCLAW','PURCOD')
 			INNER JOIN "BENEFIT_CLAIM_STATUS" AS "STATUS_TABLE"
 			ON "CLAIM_MASTER"."CLAIM_REFERENCE"="STATUS_TABLE"."CLAIM_REFERENCE"
 			WHERE ("STATUS_TABLE"."TOTAL_LEVEL"='1' AND "CLAIM_MASTER"."FIRST_LEVEL_APPROVED_ON" BETWEEN '${dateRange.startDate}' AND '${dateRange.endDate}') OR

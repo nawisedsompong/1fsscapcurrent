@@ -9,6 +9,7 @@ FUNCTION "get_ApprovalStructure_Epm" (
 	
 	DECLARE IDX INT;
 	DECLARE MAXIDX INT;
+	DECLARE MAXIDY INT;
 	DECLARE lv_index INT;
 	DECLARE LT_APP_STRU_TABLE "tt_ApprStru_table_type";
 	
@@ -37,7 +38,8 @@ FUNCTION "get_ApprovalStructure_Epm" (
 	      ));
 	      
     	
-				LT_APP_STRU_temp = SELECT TOP 1
+				-- LT_APP_STRU_temp = SELECT TOP 1
+				LT_APP_STRU_temp = SELECT 
 										AST."CLAIM_CODE",
 			    						AST."DESCRIPTION",
 			    						AST."SEQUENCE_OF_CHECK",
@@ -165,6 +167,12 @@ FUNCTION "get_ApprovalStructure_Epm" (
 	-- 													ON empmast."SPECIALISATION" = ASTlast."SPECIALISATION" OR ASTlast."SPECIALISATION"= 'ALL'
 	-- 													ORDER BY "SEQUENCE_OF_CHECK";
 														
+				MAXIDY = RECORD_COUNT(:LT_APP_STRU_temp);
+					IF MAXIDY > 1 THEN
+						LT_APP_STRU_temp = SELECT * FROM :LT_APP_STRU_temp where "PAY_GRADE" <> 'ALL' OR "SPONSOR_INSTITUTION" <> 'ALL' OR "EMPLOYEE_DEPARTMENT" <> 'ALL' OR "EMPLOYEE_DIVISION" <>'ALL'
+										OR "PERSONNEL_AREA" <> 'ALL' OR  "PERSONAL_SUBAREA" <> 'ALL' OR "SPECIALISATION" <> 'ALL';
+					END IF;
+					
 				:LT_APP_STRU_TABLE.INSERT((:LT_APP_STRU_temp.CLAIM_CODE[1], :LT_APP_STRU_temp.DESCRIPTION[1], :LT_APP_STRU_temp.SEQUENCE_OF_CHECK[1],:LT_APP_STRU_temp.CLAIM_REFERENCE[1],:LT_APP_STRU_temp.EMPLOYEE_ID[1]));								
 		 END FOR;
 		 

@@ -410,10 +410,10 @@ type CoPayment : {
     	YTDWardCharges: Decimal(10,2);
     	balance: Decimal(10,2);
         claimDate: Date;
-        totalWardDays: Integer;
-        consumedWardDays: Integer;
-        remainingWardDays: Integer;
-        pendingWardDays: Integer;
+        totalWardDays: Decimal(10,2);
+        consumedWardDays: Decimal(10,2);
+        remainingWardDays: Decimal(10,2);
+        pendingWardDays: Decimal(10,2);
         claimAmountWWPending: Decimal(10,2); 
         claimAmountWW: Decimal(10,2);
         company: String(100);
@@ -446,6 +446,7 @@ type CoPayment : {
 		DAY_TYPE_CODE: String(50);
 	};
 	action getWrcClaimAmount(employeeId: String(100), claimCode: String(50), claimDate: Date, claimUnit: Integer) returns { claimDetails: wrcClaimDetails };
+	action getMultipleWrcClaimAmount(lineItems: array of { employeeId: String(100); claimCode: String(50); claimDate: Date; claimUnit: Integer; }) returns { data: String; error: String };
 	action validateWRCClaimLineItem(employeeId: String(100), department: String(150), division: String(50), locationRO: String(100), lineItems: array of { claimDate: DateTime; }) returns { message: String };
 	function getLocationROs(employeeId: String(100), submissionDate: Date) returns array of {
 		LOCATION_RO_EMPLOYEEID: String(100);
@@ -464,11 +465,12 @@ type CoPayment : {
 		claimCategory: String(50);	
 	};
 	action validateMultipleDuplicateWRCClaim(claims: array of wrcClaimLineItems) returns { message: String };
-	action validateClaimSubmission(employeeId: String(100), claimCode: String(50), claimReference: String(50), claimDate: Date, receiptDate: Date, receiptNumber: String(50), invoiceDate: Date, invoiceNumber: String(50),isHr :String(1),isMode: String(1)) returns { message: String };
+	action validateClaimSubmission(employeeId: String(100), claimCode: String(50), claimReference: String(50), claimDate: Date, receiptDate: Date, receiptNumber: String(50), invoiceDate: Date, invoiceNumber: String(50),isHr :String(1),isMode: String(1), isApprover: String(1)) returns { message: String };
 	type claimSubmissionLineItems: {
 		employeeId: String(100);
 		claimCode: String(50);
 		claimReference: String(50);
+		masterClaimReference: String(50);
 		claimDate: Date;
 		receiptDate: Date;
 		receiptNumber: String(50);
@@ -476,6 +478,7 @@ type CoPayment : {
 		invoiceNumber: String(50);
 		isHr :String(1);
 		isMode: String(1);
+		isApprover: String(1); 
 	};
 	action validateMultipleClaimSubmission(claims: array of claimSubmissionLineItems) returns { message: String };
 	action validatePublicHolidayClaim(claimCode: String(50), claimDate: DateTime) returns { message: String };
@@ -501,7 +504,7 @@ type CoPayment : {
 	@readonly function validateClaimCancellation(CLAIM_REFERENCE: String(100), LINEITEM_CLAIM_REFERENCE: String(100)) returns { message: String(50) };
 	@readonly entity app_delegation(delegator_id:String(20)) as select from db.app_delegation(delegator_id: :delegator_id);
 	@readonly entity claimstatus_ext as select from db.claimstatus_ext;
-	@readonly entity SMS_PAYMENT_REPORT as projection on db.SMS_PAYMENT_REPORT;
+	@readonly entity SMS_PAYMENT_REPORT as select from db.SMS_PAYMENT_REPORT;
 	function ApprovalHistory(USERID:String,fromDate:Date,toDate:Date,CORDIN:String,Personnel_Area:String,Personal_Subarea:String,Pay_Grade:String,Division:String,HR_ADMIN:String,CLAIM_STATUS:String,CLAIM_TYPE:String,CATEGORY_CODE:String) returns array of {
 	// function ApprovalHistory(EMPLOYEE_ID:String,CLAIM_OWNER_ID:String,CLAIM_STATUS:String) returns array of {
 		 CLAIM_REF_NUMBER: String(100);
@@ -521,6 +524,7 @@ type CoPayment : {
     	 RECEIPT_DATE :  Date;
     	 CLAIM_OWNER_FIRSTNAME:String(100);
 		 CLAIM_OWNER_LASTNAME:String(100);
+		 CLAIM_OWNER_FULLNAME:String(100);
 		 CANCELAFTERAPPROVE:String(1);
 		 RESPONSE_DATE:Date;
 	};

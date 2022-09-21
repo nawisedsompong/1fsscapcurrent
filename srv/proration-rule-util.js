@@ -172,7 +172,7 @@ async function ProrationRule(data, req, logRequired, claimData) {
 			};
 		}
 	} catch (err) {
-		// console.log(err);
+		console.log(err);
 		if (logRequired) {
 			logs.push({
 				Rep_Log_ID: generateRandomID(),
