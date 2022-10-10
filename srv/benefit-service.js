@@ -1138,8 +1138,8 @@ module.exports = async(srv) => {
 			},
 			Co_Payment: {
 				db: Co_Payment,
-				entries: ["Claim_code", "Clinic", "Med_Leave_Declar", "AL_Exceeded"],
-				allowDelete: ""
+				entries: ["Claim_Code", "Clinic", "Med_Leave_Declar", "AL_Exceeded"],
+				allowDelete: "X"
 			},
 			EMPLOYEE_MASTER: {
 				db: EMPLOYEE_MASTER,
@@ -2875,7 +2875,7 @@ module.exports = async(srv) => {
 
 				// Summation
 				data.pending = parseFloat(data.pending) + parseFloat(pendingClaims[j].CLAIM_AMOUNT);
-				data.pendingWardDays += parseFloat(pendingClaims[j].NO_OF_WARD_DAYS);
+				data.pendingWardDays = parseFloat(data.pendingWardDays) + parseFloat(pendingClaims[j].NO_OF_WARD_DAYS);
 				data.claimAmountWWPending = parseFloat(data.claimAmountWWPending) + parseFloat(pendingClaims[j].CLAIM_AMOUNT_WW);
 			}
 			data.pending = parseFloat2Decimals(data.pending);
@@ -3295,8 +3295,8 @@ module.exports = async(srv) => {
 		}
 
 		// Rounding to three decimal places
-		data.Claim_Amount = ((parseFloat(data.Consultation_Fee) * 100000) + (parseFloat(data.Other_Cost) * 100000) + (parseFloat(data.Hospitalization_Fees) *
-			100000)) / 100000;
+		data.Claim_Amount = parseFloat(((parseFloat(data.Consultation_Fee) * 100000) + (parseFloat(data.Other_Cost) * 100000) + (parseFloat(data.Hospitalization_Fees) *
+			100000)) / 100000).toFixed(3);
 
 		if (parseFloat(coPayment[0].CAP_AMOUNT_TOTAL) > 0) {
 			if (parseFloat(data.balance) <= parseFloat(coPayment[0].CAP_AMOUNT_TOTAL) && parseFloat(data.Claim_Amount) >=
@@ -4139,6 +4139,19 @@ module.exports = async(srv) => {
 			receiptDate = (requestData.receiptDate) ? new Date(requestData.receiptDate) : null,
 			invoiceDate = (requestData.invoiceDate) ? new Date(requestData.invoiceDate) : null,
 			submissionDate = new Date();
+		if (requestData.isApprover === 'X') {
+			let claimRefer = (hasMultiple) ? requestData.masterClaimReference : requestData.claimReference;
+			let submissionDateResult = await tx.run(
+				`SELECT 
+					"SUBMIT_DATE"
+				 FROM "BENEFIT_CLAIM_STATUS"
+				 WHERE "CLAIM_REFERENCE"='${claimRefer}'`
+			);
+			if (submissionDateResult.length > 0 && submissionDateResult[0].SUBMIT_DATE) {
+				startDate = new Date(submissionDateResult[0].SUBMIT_DATE);
+				submissionDate = new Date(submissionDateResult[0].SUBMIT_DATE);
+			}
+		}
 		switch (result1[0].PERIOD_UNITS) {
 		case "Days":
 			startDate = new Date(startDate.setDate(startDate.getDate() - parseInt(result1[0].PERIOD_NUMBER)));
@@ -4150,6 +4163,7 @@ module.exports = async(srv) => {
 			startDate = new Date(startDate.setMonth(startDate.getMonth() - parseInt(result1[0].PERIOD_NUMBER)));
 			break;
 		}
+		startDate = new Date(startDate.setDate(startDate.getDate() + 1));
 
 		let employmentDetails = await tx.run(
 			`SELECT 
@@ -4173,18 +4187,6 @@ module.exports = async(srv) => {
 		var employmentStartDate = new Date(employmentDetails.STARTDATE),
 			employmentEndDate = new Date(employmentDetails.ENDDATE);
 			
-		if (requestData.isApprover === 'X') {
-			let claimRefer = (hasMultiple) ? requestData.masterClaimReference : requestData.claimReference;
-			let submissionDateResult = await tx.run(
-				`SELECT 
-					"SUBMIT_DATE"
-				 FROM "BENEFIT_CLAIM_STATUS"
-				 WHERE "CLAIM_REFERENCE"='${claimRefer}'`
-			);
-			if (submissionDateResult.length > 0 && submissionDateResult[0].SUBMIT_DATE) {
-				submissionDate = new Date(submissionDateResult[0].SUBMIT_DATE);
-			}
-		}
 		if (requestData.invoiceDate) {
 			if (invoiceDate < employmentStartDate || invoiceDate > employmentEndDate) {
 				return {

@@ -224,8 +224,24 @@ ON YTD.EMPLOYEE = claim_coord.EmployeeID{
 		YTD.DIVISION,
 		YTD.Division_Desc
 };
+
+define view MEDISAVE_REPORT as select from MEDISAVE_REPORT_CAL_AMT as prorated
+{
+	prorated.CLAIM_CODE_VALUE,
+	prorated.ENTITLEMENT,
+	prorated.TAKEN_AMOUNT,
+	prorated.PENDING_AMOUNT,
+	prorated.YEAR,
+	prorated.EMPLOYEE,
+	prorated.BALANCE,
+	prorated.MEDISAVE_CREDIT_CAP,
+	CASE WHEN ( (CAST (prorated.BALANCE AS Decimal(10,2))) - (CAST (prorated.MEDISAVE_CREDIT_CAP AS Decimal(10,2))) ) < 0  then round(prorated.BALANCE)
+	else round(prorated.MEDISAVE_CREDIT_CAP) end as MEDISAVE_CREDIT: Decimal(10,2),
+	prorated.EMPLOYEE_NAME,
+	prorated.DEPENDENT_ENTITLMENT
+};
    	
-define view MEDISAVE_REPORT as select from PRORATED_CLAIMS_YTD as prorated
+define view MEDISAVE_REPORT_CAL_AMT as select from PRORATED_CLAIMS_YTD as prorated
 inner join MEDISAVE_CLAIM_CODE as medclaimcode
 on prorated.CLAIM_CODE_VALUE = medclaimcode.Claim_code
 left join MEDISAVE_DEPEN_REPORT as meddep_report
@@ -245,9 +261,14 @@ and EmpJob.endDate >= $now
 	prorated.PENDING_AMOUNT,
 	prorated.YEAR,
 	prorated.EMPLOYEE,
-	prorated.BALANCE,
-	CASE WHEN prorated.BALANCE < 0  then 0
-	else round(prorated.BALANCE * 50/100) end as MEDISAVE_CREDIT : Decimal(10,2),
+	// prorated.BALANCE,
+	CASE WHEN prorated.BALANCE is null THEN '0.00'
+		 WHEN prorated.BALANCE < 0.00 THEN '0.00'
+   		 ELSE prorated.BALANCE
+		 END AS BALANCE : Decimal(10,2),
+	CASE WHEN prorated.ENTITLEMENT is not null then
+		(CAST (prorated.ENTITLEMENT AS Decimal(10,2)) * 50/100)
+		else '0.00' end AS MEDISAVE_CREDIT_CAP : Decimal(10,2),
 	empName.fullName as EMPLOYEE_NAME,
 	meddep_report.ENTITLEMENT as DEPENDENT_ENTITLMENT
 }
@@ -343,6 +364,8 @@ entity PAY_UP {
 
 entity EXPORT_REPORT_STATUS {
 	key EXPORT_REPORT_ID: String(50);
+		EMPLOYEE_ID: String(50);
+		EMPLOYEE_NAME: String(100);
 		FILE_GEN_TIMESTAMP: DateTime;
 		FILE_NAME: String(50);
 		REPORT_TYPE: String(20);

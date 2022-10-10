@@ -15,6 +15,7 @@ module.exports = async(srv) => {
 		SMS_Replication_Logs,
 		Replication_Logs,
 		EmpJob,
+		PerPersonRelationship,
 		SMS_Import_Posting_Upload,
 		SMS_Import_Posting_Upload_Logs,
 		SMS_Excel_Upload_Logs
@@ -30,7 +31,7 @@ module.exports = async(srv) => {
 			const db = await cds.connect.to("db");
 			let dbConn = new dbClass(await dbClass.createConnection(db.options.credentials));
 			let storedProcedureObj = await dbConn.loadProcedurePromisified(hdbext, null, 'proc_master_data_sync');
-			let result = await dbConn.callProcedurePromisified(storedProcedureObj, [data.DEPARTMENT, data.DIVISION, data.PA, data.PSA, data.SPECIALISATION, data.SPONSOR, data.PAY_GRADE]);
+			let result = await dbConn.callProcedurePromisified(storedProcedureObj, [data.DEPARTMENT, data.DIVISION, data.PA, data.PSA, data.SPECIALISATION, data.SPONSOR, data.PAY_GRADE, data.EMPLOYEE_TYPE]);
 			console.log('Master Data Sync Result:', result);
 			if (result && result.outputScalar && result.outputScalar.LT_MSG_OUT) {
 				return {
@@ -352,8 +353,8 @@ module.exports = async(srv) => {
 				if (entries[k].ITEM_TEXT) {
 					entries[k].ITEM_TEXT = entries[k].ITEM_TEXT.toString();
 				}
-				if (entries[k].REMARKS) {
-					entries[k].REMARKS = entries[k].REMARKS.toString();
+				if (!entries[k].FI_DOCUMENT_NUMBER) {
+					entries[k].REMARKS = (entries[k].REMARKS) ? entries[k].REMARKS.toString() : '';
 					logs.push({
 						Log_Id: generateRandomID(),
 						Timestamp: dateTimeFormat(convertedCurrentDate),
@@ -557,15 +558,19 @@ module.exports = async(srv) => {
 						let invoiceDate = (result1[l].INVOICE_DATE) ? dateFormatForClaimReference(result1[l].INVOICE_DATE) : '';
 						let docType = (result1[l].CLAIM_AMOUNT && parseFloat(result1[l].CLAIM_AMOUNT) > 0) ? 'YA' : 'YB';
 						let employeeId = (tableWithLineItem[k].masterTable === 'BENEFIT_PAY_UP_MASTER_CLAIM') ? result1[l].SCHOLAR_ID : result1[l].EMPLOYEE_ID;
-						let remarks = result1[l].ITEM_LINE_REMARKS_EMPLOYEE;
+						let remarks = result1[l].ITEM_DESC;
 						// Remarks String Sanitization
 						if (remarks) {
 							remarks = remarks.replace(/[\n\r]+/g, '');
 							remarks = remarks.replace(/\s{2,10}/g, ' ');
 							let replacer = new RegExp('"', 'g');
 							remarks = remarks.replace(replacer, '""');
+							remarks = remarks.substring(0, 50);
 						} else {
 							remarks = 'N/A';
+						}
+						if (result1[l].INVOICE_NUMBER) {
+							result1[l].INVOICE_NUMBER = result1[l].INVOICE_NUMBER.toString().replace(/,/g, '');
 						}
 						let scholarName = '';
 						result1[l].CLAIM_AMOUNT = (result1[l].CLAIM_AMOUNT && parseFloat(result1[l].CLAIM_AMOUNT) < 0) ? parseFloat(-result1[l].CLAIM_AMOUNT).toString() : result1[l].CLAIM_AMOUNT;
@@ -585,9 +590,9 @@ module.exports = async(srv) => {
 								File_Generation_Date: dateFormat(new Date()),
 								Doc_Type: docType,
 								Currency: result1[l].CURRENCY,
-								Invoice_Number: result1[l].INVOICE_NUMBER,
+								Invoice_Number: result1[l].INVOICE_NUMBER + employeeId,
 								Amount: result1[l].CLAIM_AMOUNT,
-								Remarks: result1[l].ITEM_LINE_REMARKS_EMPLOYEE
+								Remarks: remarks
 							});
 							continue;
 						}
@@ -607,7 +612,7 @@ module.exports = async(srv) => {
 							FILE_GEN_DATE: dateFormatForClaimReference(new Date()),
 							DOC_TYPE: docType,
 							CURRENCY: result1[l].CURRENCY,
-							INVOICE_NUMBER: result1[l].INVOICE_NUMBER,
+							INVOICE_NUMBER: result1[l].INVOICE_NUMBER + employeeId,
 							HEADER_TEXT: headerText,
 							POSTING_KEY: vendorPostingKey,
 							VENDOR_GL_CODE: vendorCode,
@@ -624,7 +629,7 @@ module.exports = async(srv) => {
 							FILE_GEN_DATE: dateFormatForClaimReference(new Date()),
 							DOC_TYPE: docType,
 							CURRENCY: result1[l].CURRENCY,
-							INVOICE_NUMBER: result1[l].INVOICE_NUMBER,
+							INVOICE_NUMBER: result1[l].INVOICE_NUMBER + employeeId,
 							HEADER_TEXT: headerText,
 							POSTING_KEY: glPostingKey,
 							VENDOR_GL_CODE: glAccount,
@@ -654,7 +659,7 @@ module.exports = async(srv) => {
 							File_Generation_Date: dateFormat(new Date()),
 							Doc_Type: docType,
 							Currency: result1[l].CURRENCY,
-							Invoice_Number: result1[l].INVOICE_NUMBER,
+							Invoice_Number: result1[l].INVOICE_NUMBER + employeeId,
 							Header: headerText,
 							Posting_Key: vendorPostingKey,
 							Vendor_GL_Code: vendorCode,
@@ -662,7 +667,7 @@ module.exports = async(srv) => {
 							Amount: result1[l].CLAIM_AMOUNT,
 							Tax_Indicator: 'X',
 							Tax_Code: '',
-							Remarks: result1[l].ITEM_LINE_REMARKS_EMPLOYEE,
+							Remarks: remarks,
 							Master_Table_Name: tableWithLineItem[k].masterTable,
 							Lineitem_Table_Name: tableWithLineItem[k].lineItemTable
 						});
@@ -683,7 +688,7 @@ module.exports = async(srv) => {
 							File_Generation_Date: dateFormat(new Date()),
 							Doc_Type: docType,
 							Currency: result1[l].CURRENCY,
-							Invoice_Number: result1[l].INVOICE_NUMBER,
+							Invoice_Number: result1[l].INVOICE_NUMBER + employeeId,
 							Header: headerText,
 							Posting_Key: glPostingKey,
 							Vendor_GL_Code: glAccount,
@@ -691,7 +696,7 @@ module.exports = async(srv) => {
 							Amount: result1[l].CLAIM_AMOUNT,
 							Tax_Indicator: '',
 							Tax_Code: 'IN',
-							Remarks: result1[l].ITEM_LINE_REMARKS_EMPLOYEE,
+							Remarks: remarks,
 							Master_Table_Name: tableWithLineItem[k].masterTable,
 							Lineitem_Table_Name: tableWithLineItem[k].lineItemTable
 						});
@@ -2101,5 +2106,19 @@ module.exports = async(srv) => {
 			else{
 				return req.reject(404, `The Deletion of record for User ${id} failed`);
 			}
-	})
+	});
+	
+	srv.on('SFPerPersonRelationshipCPIDelete', async(req) => {
+			var id = req.data.personidExternal;
+			var tx = cds.transaction(req);
+			var deletPerPersonRelationship = tx.run(DELETE.from(PerPersonRelationship).where({
+				personIdExternal:id
+			}))
+			if(deletPerPersonRelationship!=0){
+				return `The Deletion of record for User ${id} was Successful`
+			}
+			else{
+				return req.reject(404, `The Deletion of record for User ${id} failed`);
+			}
+	});
 }

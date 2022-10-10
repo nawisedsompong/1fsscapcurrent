@@ -37,6 +37,7 @@ entity EmpEmployment
 	key userId:String(100);
 		startDate :DateTime;
 		endDate:DateTime;
+		benefitsEligibilityStartDate: DateTime;
 }
 entity EmpWorkPermit
 {
@@ -484,6 +485,12 @@ and EmpJob.endDate >= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM
 		Remarks: String;
 	}
 	
+	entity Master_Employee_Type {
+    	key COMPANY:String(50);
+    	key EMPLOYEE_TYPE_CODE:String(150);
+    		EMPLOYEE_TYPE_DESC:String(150);
+    }
+	
 	define view EmployeeInformationall as select from PerPersonalView as PerPersonal 
 left join EmpJob as EmpJob on EmpJob.userId = PerPersonal.personIdExternal 
 and EmpJob.startDate <= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS') and EmpJob.endDate >= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS')
@@ -667,6 +674,35 @@ on scheme.externalCode = scholar.externalCode
 		// scheme.mdfSystemEffectiveEndDate,
 		// scheme.mdfSystemRecordStatus,
 	
+};
+
+define view Total_Disbursement as select from SCHOLAR_SCHEME as schscheme
+left join db.DISBURSMENT_CHARGEOUT_CLAIM as claim
+on claim.EMPLOYEE_ID = schscheme.externalCode
+{
+	schscheme.externalCode,
+	schscheme.effectiveStartDate,
+	schscheme.cust_yearOfAward,
+	schscheme.cust_scholarshipScheme,
+	 sum(claim.CLAIM_AMOUNT) as total_disbursement
 }
+group by schscheme.cust_yearOfAward,schscheme.cust_scholarshipScheme,schscheme.effectiveStartDate,schscheme.externalCode;
 	
+define view CHARGE_PAYABLE_OUT as select from SCHOLAR_SCHEME as schscheme
+left join Total_Disbursement as Disbursement
+on Disbursement.cust_yearOfAward = schscheme.cust_yearOfAward
+and Disbursement.cust_scholarshipScheme = schscheme.cust_scholarshipScheme
+and Disbursement.effectiveStartDate = schscheme.effectiveStartDate
+and Disbursement.externalCode = schscheme.externalCode
+{
+		schscheme.externalCode,
+		schscheme.effectiveStartDate,
+		schscheme.cust_yearOfAward,
+		schscheme.cust_scholarshipScheme,
+		schscheme.cust_fundingMOH,
+		schscheme.cust_fundingCluster,
+		schscheme.cust_allocatedCluster,
+		(cast(schscheme.cust_fundingCluster as Decimal(10,2)) * Disbursement.total_disbursement) as Payable_moh,
+		(cast(schscheme.cust_fundingMOH as Decimal(10,2)) * Disbursement.total_disbursement) as Payable_cluster
+};
 }

@@ -64,4 +64,23 @@ service CalculationService @(path:'/calclaim')@(impl:'./benefit-ext-service.js')
 	   CUST_VENDORCODE: String;
    };
    
+   type ScholarIdType: {
+	SCHOLAR_ID: String(50);
+   }
+   action getScholarsBankDetails(SCHOLAR_IDs: array of {SCHOLAR_ID: String(50);}) returns array of {
+   	EXTERNALCODE: String;
+	CUST_BANKNAME: String;
+	CUST_CURRENCY: String;
+	CUST_ACCOUNTOWNER: String;
+	CUST_BANKACCOUNTNUMBER: String;
+	CUST_PRIMARYBANKACCOUNTSTR: String;
+	CUST_VENDORCODE: String;
+	OVRSEAS_CUST_BANKACCOUNT_EXTERNALCODE: String;
+	OVRSEAS_CUST_ACCOUNTOWNER: String;
+	OVRSEAS_CUST_BANKACCOUNTNUMBER: String;
+	OVRSEAS_CUST_CURRENCY: String(50);
+	OVRSEAS_CUST_BANK: String;
+	OVRSEAS_CUST_PRIMARYBANKSTR: String;
+   };
+   
  }

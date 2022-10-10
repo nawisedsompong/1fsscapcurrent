@@ -1601,6 +1601,8 @@ and EmpJob.startDate <= $now
 and EmpJob.endDate >= $now
 left join sf.PerPersonalView as perperson
 on perperson.personIdExternal = EmpJob.userId
+inner join sf.EmpEmployment as empEmp 
+on empEmp.userId = EmpJob.userId
 distinct
 {
 	key EmpJob.userId as EmployeeID,
@@ -1608,7 +1610,11 @@ distinct
     	perperson.lastName,
     	perperson.fullName,
     	coordinate.REPORT,
-    	coordinate.SUBMIT
+    	coordinate.SUBMIT,
+    	case when (empEmp.startDate <= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS') 
+		and (empEmp.endDate >= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS')
+		or empEmp.endDate IS NULL)) then 
+		'X' else '' end as UserStatus:String
 }
 where coordinate.STARTDATE <= CURRENT_DATE 
 and coordinate.ENDDATE >= CURRENT_DATE;
@@ -2617,4 +2623,88 @@ key	LINEITEM_TABLE3.CLAIM_REFERENCE as LINE_ITEM_REFERENCE_NUMBER,
 	IMPORT_LOGS3.Import_Timestamp as IMPORT_DATETIME
 }
 union all select from SMS_PAY_UP_PAYMENT_REPORT {*}; 
+
+define view DISBURSMENT_CHARGEOUT_CLAIM  as select from SDFC_LINEITEM_CLAIM {
+	EMPLOYEE_ID,
+	parent.CLAIM_REFERENCE as PARENT_CLAIM_REF,
+	CLAIM_REFERENCE,
+		CLAIM_CODE,
+	CLAIM_CATEGORY,
+	case when CLAIM_CODE IS NOT NULL then ''
+    end AS ITEM_DESC:String,
+    case when CLAIM_CODE IS NOT NULL then ''
+    end AS INVOICE_DATE:String,
+    case when CLAIM_CODE IS NOT NULL then ''
+    end AS INVOICE_NUMBER:String,
+	CURRENCY, 
+	CLAIM_AMOUNT
+}
+union
+select from SDFR_LINEITEM_CLAIM {
+	EMPLOYEE_ID,
+	parent.CLAIM_REFERENCE as PARENT_CLAIM_REF,
+	CLAIM_REFERENCE,
+		CLAIM_CODE,
+	CLAIM_CATEGORY,
+	case when CLAIM_CODE IS NOT NULL then ''
+    end AS ITEM_DESC:String,
+    case when CLAIM_CODE IS NOT NULL then ''
+    end AS INVOICE_DATE:String,
+    case when CLAIM_CODE IS NOT NULL then ''
+    end AS INVOICE_NUMBER:String,
+	CURRENCY, 
+	CLAIM_AMOUNT
+}
+union
+select from CPC_LINEITEM_CLAIM {
+	EMPLOYEE_ID,
+	parent.CLAIM_REFERENCE as PARENT_CLAIM_REF,
+	CLAIM_REFERENCE,
+		CLAIM_CODE,
+	CLAIM_CATEGORY,
+	ITEM_DESC,
+	INVOICE_DATE, 
+	INVOICE_NUMBER, 
+	CURRENCY, 
+	CLAIM_AMOUNT
+}
+union
+select from OC_LINEITEM_CLAIM {
+	EMPLOYEE_ID,
+	parent.CLAIM_REFERENCE as PARENT_CLAIM_REF,
+	CLAIM_REFERENCE,
+		CLAIM_CODE,
+	CLAIM_CATEGORY,
+	ITEM_DESC,
+	INVOICE_DATE, 
+	INVOICE_NUMBER, 
+	CURRENCY, 
+	CLAIM_AMOUNT
+}
+union
+select from CPC_LINEITEM_CLAIM {
+	EMPLOYEE_ID,
+	parent.CLAIM_REFERENCE as PARENT_CLAIM_REF,
+	CLAIM_REFERENCE,
+		CLAIM_CODE,
+	CLAIM_CATEGORY,
+	ITEM_DESC,
+	INVOICE_DATE, 
+	INVOICE_NUMBER, 
+	CURRENCY, 
+	CLAIM_AMOUNT
+}
+union 
+select from PAY_UP_LINEITEM_CLAIM {
+	EMPLOYEE_ID,
+	parent.CLAIM_REFERENCE as PARENT_CLAIM_REF,
+	CLAIM_REFERENCE,
+		CLAIM_CODE,
+	CLAIM_CATEGORY,
+	ITEM_DESC,
+	INVOICE_DATE, 
+	INVOICE_NUMBER, 
+	CURRENCY, 
+	CLAIM_AMOUNT
+};
 }
