@@ -274,7 +274,8 @@ module.exports = async(srv) => {
 		let CLAIM_TYPE = req.data.CLAIM_TYPE;
 		let CATEGORY_CODE = req.data.CATEGORY_CODE;
 		let CLAIM_REFERENCE = req.data.CLAIM_REFERENCE;
-		var employeejob=``;
+		let CLAIM_CODE = req.data.CLAIM_CODE;
+		var employeejob = ``;
 
 		// var options = { hour12: false };
 		// var current = new Date().toLocaleString('en-DE', options);
@@ -289,10 +290,10 @@ module.exports = async(srv) => {
 		var approvalAppend =
 			` LEFT JOIN "BENEFIT_APPROVAL" as BENEFITAPP
 							on BENEFITAPP."CLAIM_REFERENCE" = APP."CLAIM_REFERENCE"`;
-							
+
 		var employeedetails = ` INNER JOIN "SF_PERPERSONALVIEW" as PERSONALVIEW
 	on PERSONALVIEW."PERSONIDEXTERNAL" = APP."EMPLOYEE_ID"`;
-	
+
 		var current = new Date().toJSON().split("T")[0];
 
 		// if (Personnel_Area != "" && Personal_Subarea != "" && hrAdmin != "") {
@@ -318,7 +319,7 @@ module.exports = async(srv) => {
 		// 	AND WITHINCLUDE."USERID" = EXCLUDE."USERID") as HR_EMP
 		// 	ON APP."EMPLOYEE_ID"= HR_EMP."USERID" `
 		// } else {
-			var Criterias_Employee = ``;
+		var Criterias_Employee = ``;
 		// }
 
 		// if (Personnel_Area != "" && Personal_Subarea != "") {
@@ -341,7 +342,10 @@ module.exports = async(srv) => {
 		if (claimCordin != "") {
 			var CLAIMJOIN =
 				` INNER JOIN BENEFIT_CLAIM_COORD_EMPLOYEE(claim_Cordinator => '${claimCordin}') as coordinate
-						  ON APP.EMPLOYEE_ID = coordinate.EMPLOYEEID `;
+						  ON APP.EMPLOYEE_ID = coordinate.EMPLOYEEID and coordinate.REPORT ='Yes'
+				INNER JOIN "SF_EMPEMPLOYMENT" AS "EMPEMPLOY" ON "EMPEMPLOY"."PERSONIDEXTERNAL" = APP."EMPLOYEE_ID"
+			AND EMPEMPLOY."STARTDATE" <= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS')
+			and (EMPEMPLOY."ENDDATE" >= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS') or  EMPEMPLOY."ENDDATE" is null)`;
 		} else {
 			var CLAIMJOIN = ' ';
 		}
@@ -392,12 +396,17 @@ module.exports = async(srv) => {
 		if (CLAIM_REFERENCE != "") {
 			otherFilter.push(`APP.CLAIM_REFERENCE = '${CLAIM_REFERENCE}'`)
 		}
-		if(Personal_Subarea != ""){
-			 employeejob = ` INNER JOIN "SF_EMPJOB" as EMPJOB
+		if (CLAIM_CODE != "") {
+			otherFilter.push(`APP.CLAIM_CODE = '${CLAIM_CODE}'`)
+		}
+		if (Personal_Subarea != "") {
+			employeejob = ` INNER JOIN "SF_EMPJOB" as EMPJOB
 	on EMPJOB."USERID" = APP."EMPLOYEE_ID"`;
-	
-			otherFilter.push( `EMPJOB."LOCATION" = '${Personal_Subarea}' AND EMPJOB."STARTDATE" <= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS') 
-	and EMPJOB."ENDDATE" >= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS')`)
+
+			otherFilter.push(
+				`EMPJOB."LOCATION" = '${Personal_Subarea}' AND EMPJOB."STARTDATE" <= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS') 
+	and EMPJOB."ENDDATE" >= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS')`
+			)
 		}
 		for (index in otherFilter) {
 			if (index == 0) {
@@ -420,7 +429,8 @@ module.exports = async(srv) => {
 			sWHERE += ` AND (Replication_Logs."REP_STATUS" <> 'Error' or Replication_Logs."REP_STATUS" is Null)`;
 		}
 
-		var sAPPENDQUERY = rep_status + claim_Refernce + approvalAppend + employeedetails +employeejob+ Criterias_Employee + CLAIMJOIN + sWHERE;
+		var sAPPENDQUERY = rep_status + claim_Refernce + approvalAppend + employeedetails + employeejob + Criterias_Employee + CLAIMJOIN +
+			sWHERE;
 		console.log(sAPPENDQUERY);
 		// var sAPPENDQUERY = CLAIMJOIN + sWHERE;
 		return sAPPENDQUERY;
@@ -441,10 +451,13 @@ module.exports = async(srv) => {
 		let CLAIM_TYPE = req.data.CLAIM_TYPE;
 		let CATEGORY_CODE = req.data.CATEGORY_CODE;
 		let CLAIM_REFERENCE = req.data.CLAIM_REFERENCE;
-
+		let CLAIM_CODE = req.data.CLAIM_CODE;
 		// var options = { hour12: false };
 		// var current = new Date().toLocaleString('en-DE', options);
 		// current = current.split(",")[0].split("/").reverse().join("-")+current.split(",")[1];
+		var rep_status =` left join "SF_REPLICATION_LOGS" as  Replication_Logs
+			on APP."CLAIM_REFERENCE" = Replication_Logs."INTERNAL_CLAIM_REFERENCE"`;
+			
 		var payup = ` INNER JOIN "BENEFIT_PAY_UP_LINEITEM_CLAIM" as LINEPAY
 					ON LINEPAY."PARENT_CLAIM_REFERENCE" = APP."CLAIM_REFERENCE"`
 		var claim_Refernce =
@@ -483,7 +496,7 @@ module.exports = async(srv) => {
 		// 	AND WITHINCLUDE."USERID" = EXCLUDE."USERID") as HR_EMP
 		// 	ON LINEPAY."SCHOLAR_ID"= HR_EMP."USERID" `
 		// } else {
-			var Criterias_Employee = ``;
+		var Criterias_Employee = ``;
 		// }
 
 		// if (Personnel_Area != "" && Personal_Subarea != "") {
@@ -506,7 +519,9 @@ module.exports = async(srv) => {
 		if (claimCordin != "") {
 			var CLAIMJOIN =
 				` INNER JOIN BENEFIT_CLAIM_COORD_EMPLOYEE(claim_Cordinator => '${claimCordin}') as coordinate
-						  ON LINEPAY."SCHOLAR_ID" = coordinate.EMPLOYEEID `;
+			ON LINEPAY."SCHOLAR_ID" = coordinate.EMPLOYEEID and coordinate.REPORT ='Yes'INNER JOIN "SF_EMPEMPLOYMENT" AS "EMPEMPLOY" ON "EMPEMPLOY"."PERSONIDEXTERNAL" = LINEPAY."SCHOLAR_ID" 
+			AND EMPEMPLOY."STARTDATE" <= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS')
+			and (EMPEMPLOY."ENDDATE" >= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS') or  EMPEMPLOY."ENDDATE" is null)`;
 		} else {
 			var CLAIMJOIN = ' ';
 		}
@@ -557,6 +572,9 @@ module.exports = async(srv) => {
 		if (CLAIM_REFERENCE != "") {
 			otherFilter.push(`APP."CLAIM_REFERENCE" = '${CLAIM_REFERENCE}'`)
 		}
+		// if (CLAIM_CODE != "") {
+		// 	otherFilter.push(`APP.CLAIM_CODE = '${CLAIM_CODE}'`)
+		// }
 		for (index in otherFilter) {
 			if (index == 0) {
 				if (sWHERE == ``) {
@@ -570,396 +588,466 @@ module.exports = async(srv) => {
 			}
 
 		}
+		
+			//REP LOGS STATUS
+		if (sWHERE == ``) {
+			sWHERE += `WHERE (Replication_Logs."REP_STATUS" <> 'Error' or Replication_Logs."REP_STATUS" is Null)`;
+		} else {
+			sWHERE += ` AND (Replication_Logs."REP_STATUS" <> 'Error' or Replication_Logs."REP_STATUS" is Null)`;
+		}
 
-		var sAPPENDQUERY = payup + claim_Refernce + approvalAppend + employeedetails + Criterias_Employee + CLAIMJOIN + sWHERE;
+		var sAPPENDQUERY = rep_status+payup + claim_Refernce + approvalAppend + employeedetails + Criterias_Employee + CLAIMJOIN + sWHERE;
 		console.log(sAPPENDQUERY);
 		// var sAPPENDQUERY = CLAIMJOIN + sWHERE;
 		return sAPPENDQUERY;
 	};
+
+	function removeClaimcodefromWhere(string) {
+		if (string.match(/(?<=AND APP.CLAIM_CODE = \s*).*?(?=\s*AND)/gs) != null) {
+			var claim_code = string.match(/(?<=AND APP.CLAIM_CODE = \s*).*?(?=\s*AND)/gs)[0];
+			var strChanged = string.replace(`AND APP.CLAIM_CODE = ` + claim_code, "");
+		} else {
+			var strChanged = string;
+		}
+		return strChanged;
+	};
+
+	srv.on('exportYtdReport', async(req, next) => {
+		cds.spawn({
+			after: 100
+		}, async() => {
+				let tx = db.tx();
+			let userEmail = req.user.id;
+			let loggedInEmpID = '';
+			let loggedInEmpName = '';
+			await tx.begin();
+			let userResult = await tx.run(
+				`SELECT 
+					"PER_EMAIL"."PERSONIDEXTERNAL",
+					"PER_PERSON"."CUSTOMSTRING2" AS "EMPLOYEE_NAME"
+				FROM "SF_PEREMAIL" AS "PER_EMAIL"
+				LEFT JOIN "SF_PERPERSONAL" AS "PER_PERSON"
+				ON "PER_EMAIL"."PERSONIDEXTERNAL"="PER_PERSON"."PERSONIDEXTERNAL"
+				WHERE "EMAILADDRESS"='${userEmail}'`
+			);
+			if (userResult.length > 0 && userResult[0].PERSONIDEXTERNAL) {
+				loggedInEmpID = userResult[0].PERSONIDEXTERNAL;
+				loggedInEmpName = userResult[0].EMPLOYEE_NAME;
+			}
+			let tx2 = db.tx();
+			await tx2.begin();
+			await tx2.run(
+				`DELETE FROM "CALCULATION_EXPORT_REPORT_STATUS" WHERE "REPORT_TYPE"='CLAIM_REPORT' AND "EMPLOYEE_ID"='${loggedInEmpID}'`);
+			let exportReportID = new Date().getTime().toString();
+			let reportType = 'CLAIM_REPORT';
+			let convertedCurrentDate = convertTimeZone(new Date(), 'Asia/Singapore');
+			let currentTimestamp = dateTimeFormat(convertedCurrentDate);
+			let fileName = reportType + '_' + currentTimestamp;
+			await tx2.run(INSERT.into(EXPORT_REPORT_STATUS).entries({
+				EXPORT_REPORT_ID: exportReportID,
+				EMPLOYEE_ID: loggedInEmpID,
+				EMPLOYEE_NAME: loggedInEmpName,
+				FILE_GEN_TIMESTAMP: currentTimestamp,
+				FILE_NAME: fileName,
+				REPORT_TYPE: reportType,
+				STATUS: 'Pending'
+			}));
+			await tx2.commit();
+
+		
+				var worksheetColoumn = [],
+				worksheetarray = [],
+				worksheetColoumnItem = [], //new ItemWorksheet
+				worksheetarrayItem = []
+				countClaim = 0; //new ItemWorksheet
+
+			const workbook = new Excel.Workbook();
+			let YTDresultCount = await tx.run(
+				`SELECT count(*) FROM "CALCULATION_PRORATED_CLAIMS_YTD2" AS "PRORATED" WHERE "YEAR"='2022'`);
+				
+				let YTDresult =[],OFFSET=0;
+				
+				for(var index=10000 ;index < YTDresultCount[0]['COUNT(*)'];index+=10000){
+					var temp = await tx.run(
+						`SELECT * FROM (SELECT * FROM "CALCULATION_PRORATED_CLAIMS_YTD2" 
+						WHERE "YEAR"='2022' ORDER BY "EMPLOYEE") ROWS limit 10000 offset ${OFFSET} `);
+					YTDresult = YTDresult.concat(temp);
+					OFFSET = index;
+				}
+		
+
+			//------------Creating the Excel Coloumn using the Table Key fields
+			if (YTDresult.length != 0) {
+				Object.keys(YTDresult[0]).forEach(key => {
+					worksheetColoumn.push({
+						header: key,
+						key: key
+					})
+				})
+				worksheetarray[countClaim] = workbook.addWorksheet('YTD Report');
+				worksheetarray[countClaim].properties.outlineProperties = {
+					summaryBelow: false,
+					summaryRight: false,
+				};
+				worksheetarray[countClaim].columns = worksheetColoumn;
+				worksheetarray[countClaim].addRows(YTDresult);
+			}
+			const ConvertToBase64 = async() => {
+					const fs = require("fs");
+					const buffer = await workbook.xlsx.writeBuffer();
+					return Buffer.from(buffer).toString("base64");
+				};
+				let rt = await ConvertToBase64();
+				
+				// return rt;
+				await tx.run(
+					`UPDATE "CALCULATION_EXPORT_REPORT_STATUS" SET "FILE_BASE64"='${rt}', "STATUS"='Completed', "MESSAGE"='Report Generated Successfully.' WHERE "EXPORT_REPORT_ID"='${exportReportID}' AND "EMPLOYEE_ID"='${loggedInEmpID}'`
+				);
+				await tx.commit();
+		});
+	});
 	srv.on('exportExcelClaim', async(req, next) => {
-		let tx = cds.transaction(req);
-		let userEmail = req.user.id;
-		let employeeId = req.data.USERID;
-		let filterStartDate = req.data.fromDate;
-		let filterEndDate = req.data.toDate;
-		let claimCordin = req.data.CORDIN;
-		let Personnel_Area = req.data.Personnel_Area == 'MOHHSCH' ? req.data.Personnel_Area : 'MOHH/MOHT';
-		let loggedInEmpID = '';
-		let loggedInEmpName = '';
-		let userResult = await tx.run(
-			`
-			SELECT 
-				"PER_EMAIL"."PERSONIDEXTERNAL",
-				"PER_PERSON"."CUSTOMSTRING2" AS "EMPLOYEE_NAME"
-			FROM "SF_PEREMAIL" AS "PER_EMAIL"
-			LEFT JOIN "SF_PERPERSONAL" AS "PER_PERSON"
-			ON "PER_EMAIL"."PERSONIDEXTERNAL"="PER_PERSON"."PERSONIDEXTERNAL"
-			WHERE "EMAILADDRESS"='${userEmail}'
-		`
-		);
-		if (userResult.length > 0 && userResult[0].PERSONIDEXTERNAL) {
-			loggedInEmpID = userResult[0].PERSONIDEXTERNAL;
-			loggedInEmpName = userResult[0].EMPLOYEE_NAME;
-		}
-		await tx.run(`DELETE FROM "CALCULATION_EXPORT_REPORT_STATUS" WHERE "REPORT_TYPE"='CLAIM_REPORT' AND "EMPLOYEE_ID"='${loggedInEmpID}'`);
-		let exportReportID = new Date().getTime().toString();
-		let reportType = 'CLAIM_REPORT';
-		let convertedCurrentDate = convertTimeZone(new Date(), 'Asia/Singapore');
-		let currentTimestamp = dateTimeFormat(convertedCurrentDate);
-		let fileName = reportType + '_' + currentTimestamp;
-		await tx.run(INSERT.into(EXPORT_REPORT_STATUS).entries({
-			EXPORT_REPORT_ID: exportReportID,
-			EMPLOYEE_ID: loggedInEmpID,
-			EMPLOYEE_NAME: loggedInEmpName,
-			FILE_GEN_TIMESTAMP: currentTimestamp,
-			FILE_NAME: fileName,
-			REPORT_TYPE: reportType,
-			STATUS: 'Pending'
-		}));
-		next();
-		//------Set filter for report
-		var sAPPENDQUERY = _appendQueryForExcelReport(req);
-
-		var claim_array = [{
-			table: "BENEFIT_MEDICAL_CLAIM",
-			label: "Medical Claim",
-			company: "MOHH/MOHT"
-		}, {
-			table: "BENEFIT_OVERTIME_CLAIM",
-			label: "Timesheet",
-			company: "MOHH/MOHT"
-		}, {
-			table: "BENEFIT_PC_CLAIM",
-			label: "Petty Cash",
-			company: "MOHH/MOHT"
-		}, {
-			table: "BENEFIT_CPR_CLAIM",
-			label: "Clinical Placement Request",
-			company: "MOHHSCH"
-		}];
-
-		var claim_multi_claim = [{
-			table: "BENEFIT_PTF_ACL_BCL_CLAIM",
-			multi_items_Label: [{
-				category: "PTF",
-				label: "Personal Training Fund"
-			}, {
-				category: "CLS",
-				label: "ACLS_BCLS"
-			}],
-			company: "MOHH/MOHT"
-		}, {
-			table: "BENEFIT_AHP_LIC_MS_WIC_CLAIM",
-			multi_items_Label: [{
-				category: "AHP",
-				label: "AHP Reimbursement"
-			}, {
-				category: "LIC",
-				label: "License Reimbursement"
-			}, {
-				category: "MSR",
-				label: "Medical Staff Reimbursement"
-			}, {
-				category: "WIC",
-				label: "Work Injury Compensation"
-			}],
-			company: "MOHH/MOHT"
-		}];
-
-		var claim_master_array = [{
-				master: "BENEFIT_WRC_MASTER_CLAIM",
-				lineItem: "BENEFIT_WRC_LINEITEM_CLAIM",
-				label: "Work Related Claim",
-				company: "MOHH/MOHT"
-			}, {
-				master: "BENEFIT_WRC_HR_MASTER_CLAIM",
-				lineItem: "BENEFIT_WRC_HR_LINEITEM_CLAIM",
-				label: "Work Related Claim HR",
-				company: "MOHH/MOHT"
-			}, {
-				master: "BENEFIT_COV_MASTER_CLAIM",
-				lineItem: "BENEFIT_COV_LINEITEM_CLAIM",
-				label: "COVID-19",
-				company: "MOHH/MOHT"
-			}, {
-				master: "BENEFIT_SP_MASTER_CLAIM",
-				lineItem: "BENEFIT_SP_LINEITEM_CLAIM",
-				label: "Sponsorship Exit Exam",
-				company: "MOHH/MOHT"
-			}, {
-				master: "BENEFIT_SP1_MASTER_CLAIM",
-				lineItem: "BENEFIT_SP1_LINEITEM_CLAIM",
-				label: "Sponsorship Int Conf",
-				company: "MOHH/MOHT"
-			}, {
-				master: "BENEFIT_SP2_MASTER_CLAIM",
-				lineItem: "BENEFIT_SP2_LINEITEM_CLAIM",
-				label: "Sponsorship Reg Conf",
-				company: "MOHH/MOHT"
-			}, {
-				master: "BENEFIT_SP3_MASTER_CLAIM",
-				lineItem: "BENEFIT_SP3_LINEITEM_CLAIM",
-				label: "Sponsorship Residents",
-				company: "MOHH/MOHT"
-			}, {
-				master: "BENEFIT_SDFC_MASTER_CLAIM",
-				lineItem: "BENEFIT_SDFC_LINEITEM_CLAIM",
-				label: "SDF Claims",
-				company: "MOHHSCH"
-			}, {
-				master: "BENEFIT_SDFR_MASTER_CLAIM",
-				lineItem: "BENEFIT_SDFR_LINEITEM_CLAIM",
-				label: "SDF Request",
-				company: "MOHHSCH"
-			}, {
-				master: "BENEFIT_CPC_MASTER_CLAIM",
-				lineItem: "BENEFIT_CPC_LINEITEM_CLAIM",
-				label: "Placement Claim",
-				company: "MOHHSCH"
-			}, {
-				master: "BENEFIT_OC_MASTER_CLAIM",
-				lineItem: "BENEFIT_OC_LINEITEM_CLAIM",
-				label: "Other Claims",
-				company: "MOHHSCH"
-			}, {
-				master: "BENEFIT_PAY_UP_MASTER_CLAIM",
-				lineItem: "BENEFIT_PAY_UP_LINEITEM_CLAIM",
-				label: "Payment Upload",
-				company: "MOHHSCH"
-			}, {
-				master: "BENEFIT_TC_MASTER_CLAIM",
-				lineItem: "BENEFIT_TC_LINEITEM_CLAIM",
-				label: "Transport Claim",
-				company: "MOHH/MOHT"
-			}]
-			// Removed adding Master and LineItem in same Sheet
-			// for (let claim_master_arrayI in claim_master_array){
-			// 	claim_array.push({
-			// 		table: claim_master_array[claim_master_arrayI].master,
-			// 		label: claim_master_array[claim_master_arrayI].label
-			// 	});
-
-		// 	claim_array.push({
-		// 		table: claim_master_array[claim_master_arrayI].lineItem,
-		// 		label: claim_master_array[claim_master_arrayI].label+" LineItems"
-		// 	})
-		// }
-
-		// claim_master_array=[];
-		// Removed adding Master and LineItem in same Sheet comment the code if need the feature
-
-		var worksheetColoumn = [],
-			worksheetarray = [],
-			worksheetColoumnItem = [], //new ItemWorksheet
-			worksheetarrayItem = []; //new ItemWorksheet
-
-		const workbook = new Excel.Workbook();
-
-		//-------------- Claims without lineitems retrieval------------------------
-		for (let claimIndex in claim_array) {
-			if (Personnel_Area == claim_array[claimIndex].company) {
-				worksheetColoumn = [];
-				var claimList = await tx.run(
-					`SELECT DISTINCT APP.*, WITHCANCEL.cancelreference,PERSONALVIEW."FULLNAME" FROM "${claim_array[claimIndex].table}" as APP` + sAPPENDQUERY);
-
-				//------------Creating the Excel Coloumn using the Table Key fields
-				if (claimList.length != 0) {
-					Object.keys(claimList[0]).forEach(key => {
-						worksheetColoumn.push({
-							header: key,
-							key: key
-						})
-					})
-
-					worksheetarray[claimIndex] = workbook.addWorksheet(claim_array[claimIndex].label);
-					worksheetarray[claimIndex].properties.outlineProperties = {
-						summaryBelow: false,
-						summaryRight: false,
-					};
-					worksheetarray[claimIndex].columns = worksheetColoumn;
-					worksheetarray[claimIndex].addRows(claimList);
-					// worksheetarray[claimIndex].getRow(3).outlineLevel = 1;
-				}
+		cds.spawn({
+			after: 100
+		}, async() => {
+			let tx = db.tx();
+			let userEmail = req.user.id;
+			let employeeId = req.data.USERID;
+			let filterStartDate = req.data.fromDate;
+			let filterEndDate = req.data.toDate;
+			let claimCordin = req.data.CORDIN;
+			let Personnel_Area = req.data.Personnel_Area == 'MOHHSCH' ? req.data.Personnel_Area : 'MOHH/MOHT';
+			let loggedInEmpID = '';
+			let loggedInEmpName = '';
+			await tx.begin();
+			let userResult = await tx.run(
+				`SELECT 
+					"PER_EMAIL"."PERSONIDEXTERNAL",
+					"PER_PERSON"."CUSTOMSTRING2" AS "EMPLOYEE_NAME"
+				FROM "SF_PEREMAIL" AS "PER_EMAIL"
+				LEFT JOIN "SF_PERPERSONAL" AS "PER_PERSON"
+				ON "PER_EMAIL"."PERSONIDEXTERNAL"="PER_PERSON"."PERSONIDEXTERNAL"
+				WHERE "EMAILADDRESS"='${userEmail}'`
+			);
+			if (userResult.length > 0 && userResult[0].PERSONIDEXTERNAL) {
+				loggedInEmpID = userResult[0].PERSONIDEXTERNAL;
+				loggedInEmpName = userResult[0].EMPLOYEE_NAME;
 			}
-		}
+			let tx2 = db.tx();
+			await tx2.begin();
+			await tx2.run(
+				`DELETE FROM "CALCULATION_EXPORT_REPORT_STATUS" WHERE "REPORT_TYPE"='CLAIM_REPORT' AND "EMPLOYEE_ID"='${loggedInEmpID}'`);
+			let exportReportID = new Date().getTime().toString();
+			let reportType = 'CLAIM_REPORT';
+			let convertedCurrentDate = convertTimeZone(new Date(), 'Asia/Singapore');
+			let currentTimestamp = dateTimeFormat(convertedCurrentDate);
+			let fileName = reportType + '_' + currentTimestamp;
+			await tx2.run(INSERT.into(EXPORT_REPORT_STATUS).entries({
+				EXPORT_REPORT_ID: exportReportID,
+				EMPLOYEE_ID: loggedInEmpID,
+				EMPLOYEE_NAME: loggedInEmpName,
+				FILE_GEN_TIMESTAMP: currentTimestamp,
+				FILE_NAME: fileName,
+				REPORT_TYPE: reportType,
+				STATUS: 'Pending'
+			}));
+			await tx2.commit();
+			//------Set filter for report
+			var sAPPENDQUERY = _appendQueryForExcelReport(req);
 
-		//-------------- Claims without lineitems and combined Table retrieval------------------------
-		for (let claimIndexMult in claim_multi_claim) {
-			if (Personnel_Area == claim_multi_claim[claimIndexMult].company) {
-				worksheetColoumn = [];
-				var claimListMul = await tx.run(
-					`SELECT DISTINCT APP.*, WITHCANCEL.cancelreference,PERSONALVIEW."FULLNAME" FROM "${claim_multi_claim[claimIndexMult].table}" as APP` +
-					sAPPENDQUERY);
+			var claim_array = [{
+				table: "BENEFIT_MEDICAL_CLAIM",
+				label: "Medical Claim",
+				company: "MOHH/MOHT"
+			}, {
+				table: "BENEFIT_OVERTIME_CLAIM",
+				label: "Timesheet",
+				company: "MOHH/MOHT"
+			}, {
+				table: "BENEFIT_PC_CLAIM",
+				label: "Petty Cash",
+				company: "MOHH/MOHT"
+			}, {
+				table: "BENEFIT_CPR_CLAIM",
+				label: "Clinical Placement Request",
+				company: "MOHHSCH"
+			}];
 
-				//------------Creating the Excel Coloumn using the Table Key fields
-				if (claimListMul.length != 0) {
-					Object.keys(claimListMul[0]).forEach(key => {
-						worksheetColoumn.push({
-							header: key,
-							key: key
-						})
-					})
+			var claim_multi_claim = [{
+				table: "BENEFIT_PTF_ACL_BCL_CLAIM",
+				multi_items_Label: [{
+					category: "PTF",
+					label: "Personal Training Fund"
+				}, {
+					category: "CLS",
+					label: "ACLS_BCLS"
+				}],
+				company: "MOHH/MOHT"
+			}, {
+				table: "BENEFIT_AHP_LIC_MS_WIC_CLAIM",
+				multi_items_Label: [{
+					category: "AHP",
+					label: "AHP Reimbursement"
+				}, {
+					category: "LIC",
+					label: "License Reimbursement"
+				}, {
+					category: "MSR",
+					label: "Medical Staff Reimbursement"
+				}, {
+					category: "WIC",
+					label: "Work Injury Compensation"
+				}],
+				company: "MOHH/MOHT"
+			}];
 
-					for (let countClaim in claim_multi_claim[claimIndexMult].multi_items_Label) {
-						var listofCategoryFiltered = claimListMul.filter(checkMultiCategory)
+			var claim_master_array = [{
+					master: "BENEFIT_WRC_MASTER_CLAIM",
+					lineItem: "BENEFIT_WRC_LINEITEM_CLAIM",
+					label: "Work Related Claim",
+					company: "MOHH/MOHT"
+				}, {
+					master: "BENEFIT_WRC_HR_MASTER_CLAIM",
+					lineItem: "BENEFIT_WRC_HR_LINEITEM_CLAIM",
+					label: "Work Related Claim HR",
+					company: "MOHH/MOHT"
+				}, {
+					master: "BENEFIT_COV_MASTER_CLAIM",
+					lineItem: "BENEFIT_COV_LINEITEM_CLAIM",
+					label: "COVID-19",
+					company: "MOHH/MOHT"
+				}, {
+					master: "BENEFIT_SP_MASTER_CLAIM",
+					lineItem: "BENEFIT_SP_LINEITEM_CLAIM",
+					label: "Sponsorship Exit Exam",
+					company: "MOHH/MOHT"
+				}, {
+					master: "BENEFIT_SP1_MASTER_CLAIM",
+					lineItem: "BENEFIT_SP1_LINEITEM_CLAIM",
+					label: "Sponsorship Int Conf",
+					company: "MOHH/MOHT"
+				}, {
+					master: "BENEFIT_SP2_MASTER_CLAIM",
+					lineItem: "BENEFIT_SP2_LINEITEM_CLAIM",
+					label: "Sponsorship Reg Conf",
+					company: "MOHH/MOHT"
+				}, {
+					master: "BENEFIT_SP3_MASTER_CLAIM",
+					lineItem: "BENEFIT_SP3_LINEITEM_CLAIM",
+					label: "Sponsorship Residents",
+					company: "MOHH/MOHT"
+				}, {
+					master: "BENEFIT_SDFC_MASTER_CLAIM",
+					lineItem: "BENEFIT_SDFC_LINEITEM_CLAIM",
+					label: "SDF Claims",
+					company: "MOHHSCH"
+				}, {
+					master: "BENEFIT_SDFR_MASTER_CLAIM",
+					lineItem: "BENEFIT_SDFR_LINEITEM_CLAIM",
+					label: "SDF Request",
+					company: "MOHHSCH"
+				}, {
+					master: "BENEFIT_CPC_MASTER_CLAIM",
+					lineItem: "BENEFIT_CPC_LINEITEM_CLAIM",
+					label: "Placement Claim",
+					company: "MOHHSCH"
+				}, {
+					master: "BENEFIT_OC_MASTER_CLAIM",
+					lineItem: "BENEFIT_OC_LINEITEM_CLAIM",
+					label: "Other Claims",
+					company: "MOHHSCH"
+				}, {
+					master: "BENEFIT_PAY_UP_MASTER_CLAIM",
+					lineItem: "BENEFIT_PAY_UP_LINEITEM_CLAIM",
+					label: "Payment Upload",
+					company: "MOHHSCH"
+				}, {
+					master: "BENEFIT_TC_MASTER_CLAIM",
+					lineItem: "BENEFIT_TC_LINEITEM_CLAIM",
+					label: "Transport Claim",
+					company: "MOHH/MOHT"
+				}]
+				// Removed adding Master and LineItem in same Sheet comment the code if need the feature
 
-						function checkMultiCategory(rows) {
-							return rows.CATEGORY_CODE == claim_multi_claim[claimIndexMult].multi_items_Label[countClaim].category;
-						}
+			var worksheetColoumn = [],
+				worksheetarray = [],
+				worksheetColoumnItem = [], //new ItemWorksheet
+				worksheetarrayItem = []; //new ItemWorksheet
 
-						worksheetarray[countClaim] = workbook.addWorksheet(claim_multi_claim[claimIndexMult].multi_items_Label[countClaim].label);
-						worksheetarray[countClaim].properties.outlineProperties = {
-							summaryBelow: false,
-							summaryRight: false,
-						};
-						worksheetarray[countClaim].columns = worksheetColoumn;
-						worksheetarray[countClaim].addRows(listofCategoryFiltered);
-					}
+			const workbook = new Excel.Workbook();
 
-					// worksheetarray[claimIndex].getRow(3).outlineLevel = 1;
-				}
-			}
-		}
+			//-------------- Claims without lineitems retrieval------------------------
+			for (let claimIndex in claim_array) {
+				if (Personnel_Area == claim_array[claimIndex].company) {
+					worksheetColoumn = [];
+					var claimList = await tx.run(
+						`SELECT DISTINCT APP.*, WITHCANCEL.cancelreference,PERSONALVIEW."FULLNAME",Replication_Logs."CLAIM_REF_NUMBER" FROM "${claim_array[claimIndex].table}" as APP` +
+						sAPPENDQUERY);
 
-		//--------------Master Line items Claims retrieval------------------------
-		for (let claimIndexM in claim_master_array) {
-			if (Personnel_Area == claim_master_array[claimIndexM].company) {
-				worksheetColoumn = [];
-				worksheetColoumnItem = []; //new ItemWorksheet
-
-				if (claim_master_array[claimIndexM].master == "BENEFIT_PAY_UP_MASTER_CLAIM") {
-					var sAPPENDQUERYITEM = _appendQueryForExcelPAYUP(req);
-				} else {
-					var sAPPENDQUERYITEM = sAPPENDQUERY;
-				}
-				var claimListM = await tx.run(
-					`SELECT DISTINCT APP.*, WITHCANCEL.cancelreference,PERSONALVIEW."FULLNAME" FROM "${claim_master_array[claimIndexM].master}" as APP` +
-					sAPPENDQUERYITEM);
-				var claimListI = await tx.run(`SELECT TOP 1 * FROM "${claim_master_array[claimIndexM].lineItem}"`);
-
-				//------------Creating the Excel Coloumn using the Master Table Key fields
-				if (claimListM.length != 0) {
-					Object.keys(claimListM[0]).forEach(key => {
-						worksheetColoumn.push({
-							header: key,
-							key: key
-						})
-					});
-
-					//------------Creating the Excel Coloumn using the LineItem Table Key fields
-					Object.keys(claimListI[0]).forEach(key => {
-						var isKeyAvailable = worksheetColoumn.filter(checkColumn)
-
-						function checkColumn(coloumn) {
-							return coloumn.key == key;
-						}
-						if (isKeyAvailable.length == 0) {
-							//new ItemWorksheet
-
-							// worksheetColoumn.push({   
-							// 	header: key,
-							// 	key: key
-							// })
-
-							worksheetColoumnItem.push({
+					//------------Creating the Excel Coloumn using the Table Key fields
+					if (claimList.length != 0) {
+						Object.keys(claimList[0]).forEach(key => {
+							worksheetColoumn.push({
 								header: key,
 								key: key
 							})
+						})
 
-							//End new ItemWorksheet
-						}
-					})
+						worksheetarray[claimIndex] = workbook.addWorksheet(claim_array[claimIndex].label);
+						worksheetarray[claimIndex].properties.outlineProperties = {
+							summaryBelow: false,
+							summaryRight: false,
+						};
+						worksheetarray[claimIndex].columns = worksheetColoumn;
+						worksheetarray[claimIndex].addRows(claimList);
+					}
+				}
+			}
 
-					worksheetarray[claimIndexM] = workbook.addWorksheet(claim_master_array[claimIndexM].label);
-					worksheetarray[claimIndexM].properties.outlineProperties = {
-						summaryBelow: false,
-						summaryRight: false,
-					};
-					worksheetarray[claimIndexM].columns = worksheetColoumn;
+			//-------------- Claims without lineitems and combined Table retrieval------------------------
+			for (let claimIndexMult in claim_multi_claim) {
+				if (Personnel_Area == claim_multi_claim[claimIndexMult].company) {
+					worksheetColoumn = [];
+					var claimListMul = await tx.run(
+						`SELECT DISTINCT APP.*, WITHCANCEL.cancelreference,PERSONALVIEW."FULLNAME",Replication_Logs."CLAIM_REF_NUMBER" FROM "${claim_multi_claim[claimIndexMult].table}" as APP` +
+						sAPPENDQUERY);
 
-					//new ItemWorksheet
+					//------------Creating the Excel Coloumn using the Table Key fields
+					if (claimListMul.length != 0) {
+						Object.keys(claimListMul[0]).forEach(key => {
+							worksheetColoumn.push({
+								header: key,
+								key: key
+							})
+						})
 
-					worksheetarrayItem[claimIndexM] = workbook.addWorksheet(claim_master_array[claimIndexM].label + " LineItem");
-					worksheetarrayItem[claimIndexM].properties.outlineProperties = {
-						summaryBelow: false,
-						summaryRight: false,
-					};
-					worksheetarrayItem[claimIndexM].columns = worksheetColoumnItem;
+						for (let countClaim in claim_multi_claim[claimIndexMult].multi_items_Label) {
+							var listofCategoryFiltered = claimListMul.filter(checkMultiCategory)
 
-					//End new ItemWorksheet
-
-					//------Arrage the Rows along with respective LineiTems
-					var MasterLineiTemArray = []
-					for (let MasterIndex in claimListM) {
-						//----Add Master To rows---------
-						worksheetarray[claimIndexM].addRow(claimListM[MasterIndex]);
-						//for PAY_UP the extra Logic 
-						var table = claim_master_array[claimIndexM].lineItem;
-						var sWHERELineItem = _appendLineQueryForExcel(req, table);
-						//end for PAY_UP the extra Logic 
-						var LineItemMaster = await tx.run(
-							`SELECT * FROM "${claim_master_array[claimIndexM].lineItem}" 
-												   WHERE "PARENT_CLAIM_REFERENCE"= '${claimListM[MasterIndex].CLAIM_REFERENCE}' ` +
-							sWHERELineItem
-						);
-						for (let lineItemIndex in LineItemMaster) {
-							// var newRow = worksheetarray[claimIndexM].addRow(LineItemMaster[lineItemIndex]);
-							// newRow.outlineLevel = 1
-							//new ItemWorksheet
-							var newRow = worksheetarrayItem[claimIndexM].addRow(LineItemMaster[lineItemIndex]);
-							//End new ItemWorksheet
+							function checkMultiCategory(rows) {
+								return rows.CATEGORY_CODE == claim_multi_claim[claimIndexMult].multi_items_Label[countClaim].category;
+							}
+							if (listofCategoryFiltered.length != 0) {
+								worksheetarray[countClaim] = workbook.addWorksheet(claim_multi_claim[claimIndexMult].multi_items_Label[countClaim].label);
+								worksheetarray[countClaim].properties.outlineProperties = {
+									summaryBelow: false,
+									summaryRight: false,
+								};
+								worksheetarray[countClaim].columns = worksheetColoumn;
+								worksheetarray[countClaim].addRows(listofCategoryFiltered);
+							}
 						}
 					}
 				}
 			}
-		}
 
-		// titeforexcel = [{
-		// 	"ID": "A-0001",
-		// 	"ITEM_ID": "001"
-		// }, {
-		// 	"ID": "A-0002",
-		// 	"ITEM_ID": "002"
-		// }]
-		// const workbook = new Excel.Workbook();
-		// const worksheet = workbook.addWorksheet("ClaimDownload");
-		// worksheet.properties.outlineProperties = {
-		// 	summaryBelow: false,
-		// 	summaryRight: false,
-		// };
-		// worksheet.columns = [{
-		// 	header: "ID",
-		// 	key: "ID"
-		// 		// hidden: "true"
-		// }, {
-		// 	header: "Quotation_Item_No",
-		// 	key: "ITEM_ID"
-		// }];
-		// var rows = [];
+			//--------------Master Line items Claims retrieval------------------------
+			for (let claimIndexM in claim_master_array) {
+				if (Personnel_Area == claim_master_array[claimIndexM].company) {
+					worksheetColoumn = [];
+					worksheetColoumnItem = []; //new ItemWorksheet
 
-		// for (let i = 0; i < titeforexcel.length; i++) {
-		// 	rows.push({
-		// 		ID: titeforexcel[i].ID,
-		// 		ITEM_ID: titeforexcel[i].ITEM_ID
-		// 	})
-		// }
+					if (claim_master_array[claimIndexM].master == "BENEFIT_PAY_UP_MASTER_CLAIM") {
+						var sAPPENDQUERYITEM = _appendQueryForExcelPAYUP(req);
+					} else {
+						var sAPPENDQUERYITEM = removeClaimcodefromWhere(sAPPENDQUERY);
+					}
+					var claimListM = await tx.run(
+						`SELECT DISTINCT APP.*, WITHCANCEL.cancelreference,PERSONALVIEW."FULLNAME",Replication_Logs."CLAIM_REF_NUMBER" FROM "${claim_master_array[claimIndexM].master}" as APP` +
+						sAPPENDQUERYITEM);
+					var claimListI = await tx.run(`SELECT TOP 1 * FROM "${claim_master_array[claimIndexM].lineItem}"`);
 
-		// worksheet.addRows(rows);
-		// worksheet.getRow(3).outlineLevel = 1;
-		if (workbook.worksheets.length != 0) {
-			const ConvertToBase64 = async() => {
-				const fs = require("fs");
-				const buffer = await workbook.xlsx.writeBuffer();
-				return Buffer.from(buffer).toString("base64");
-			};
-			let rt = await ConvertToBase64();
-			await tx.run(
-				`UPDATE "CALCULATION_EXPORT_REPORT_STATUS" SET "FILE_BASE64"='${rt}', "STATUS"='Completed' WHERE "EXPORT_REPORT_ID"='${exportReportID}' AND "EMPLOYEE_ID"='${loggedInEmpID}'`
-			);
-			return 'Report Generated Successfully.';
-		} else {
-			return req.reject(404, "There are no data to export for the selected criteria");
-		}
+					//------------Creating the Excel Coloumn using the Master Table Key fields
+					if (claimListM.length != 0) {
+						Object.keys(claimListM[0]).forEach(key => {
+							worksheetColoumn.push({
+								header: key,
+								key: key
+							})
+						});
+
+						//------------Creating the Excel Coloumn using the LineItem Table Key fields
+						Object.keys(claimListI[0]).forEach(key => {
+							var isKeyAvailable = worksheetColoumn.filter(checkColumn)
+
+							function checkColumn(coloumn) {
+								return coloumn.key == key;
+							}
+							if (isKeyAvailable.length == 0) {
+								//new ItemWorksheet
+
+								worksheetColoumnItem.push({
+									header: key,
+									key: key
+								})
+
+								//End new ItemWorksheet
+							}
+						})
+
+						worksheetarray[claimIndexM] = workbook.addWorksheet(claim_master_array[claimIndexM].label);
+						worksheetarray[claimIndexM].properties.outlineProperties = {
+							summaryBelow: false,
+							summaryRight: false,
+						};
+						worksheetarray[claimIndexM].columns = worksheetColoumn;
+
+						//new ItemWorksheet
+
+						worksheetarrayItem[claimIndexM] = workbook.addWorksheet(claim_master_array[claimIndexM].label + " LineItem");
+						worksheetarrayItem[claimIndexM].properties.outlineProperties = {
+							summaryBelow: false,
+							summaryRight: false,
+						};
+						worksheetarrayItem[claimIndexM].columns = worksheetColoumnItem;
+
+						//End new ItemWorksheet
+
+						//------Arrage the Rows along with respective LineiTems
+						var MasterLineiTemArray = []
+						for (let MasterIndex in claimListM) {
+							//----Add Master To rows---------
+							worksheetarray[claimIndexM].addRow(claimListM[MasterIndex]);
+							//for PAY_UP the extra Logic 
+							var table = claim_master_array[claimIndexM].lineItem;
+							var sWHERELineItem = _appendLineQueryForExcel(req, table);
+							//end for PAY_UP the extra Logic 
+							var LineItemMaster = await tx.run(
+								`SELECT * FROM "${claim_master_array[claimIndexM].lineItem}" 
+													   WHERE "PARENT_CLAIM_REFERENCE"= '${claimListM[MasterIndex].CLAIM_REFERENCE}' ` +
+								sWHERELineItem
+							);
+							for (let lineItemIndex in LineItemMaster) {
+								//new ItemWorksheet
+								var newRow = worksheetarrayItem[claimIndexM].addRow(LineItemMaster[lineItemIndex]);
+								//End new ItemWorksheet
+							}
+						}
+					}
+				}
+			}
+			if (workbook.worksheets.length != 0) {
+				const ConvertToBase64 = async() => {
+					const fs = require("fs");
+					const buffer = await workbook.xlsx.writeBuffer();
+					return Buffer.from(buffer).toString("base64");
+				};
+				let rt = await ConvertToBase64();
+				await tx.run(
+					`UPDATE "CALCULATION_EXPORT_REPORT_STATUS" SET "FILE_BASE64"='${rt}', "STATUS"='Completed', "MESSAGE"='Report Generated Successfully.' WHERE "EXPORT_REPORT_ID"='${exportReportID}' AND "EMPLOYEE_ID"='${loggedInEmpID}'`
+				);
+				await tx.commit();
+				return console.log('Report Generated Successfully.');
+			} else {
+				await tx.run(
+					`UPDATE "CALCULATION_EXPORT_REPORT_STATUS" SET "STATUS"='Error', "MESSAGE"='There are no data to export for the selected criteria.' WHERE "EXPORT_REPORT_ID"='${exportReportID}' AND "EMPLOYEE_ID"='${loggedInEmpID}'`
+				);
+				console.log(new Date());
+				await tx.commit();
+				return console.log('There are no data to export for the selected criteria.');
+			}
+		});
+		return req.reply('Exporting report...');
 
 		//------------------------------Working Code need to test with UI---------------------------------
 
@@ -1115,8 +1203,9 @@ module.exports = async(srv) => {
 								// else{
 								var type = tableArray[numw - 1].table.elements[key].type;
 								result[key] = rowArray[i][j] == undefined ? (type == "cds.Decimal" ? 0.00 : '') : rowArray[i][j];
-								result[key] = (type == "cds.Decimal" ? (isNaN(result[key]) || result[key] == '' ? 0.00 : parseFloat(result[key])) : result[
-									key]);
+								result[key] = (type == "cds.Decimal" ? (isNaN(result[key]) || result[key] == '' ? 0.00 : parseFloat(result[key])) :
+									result[
+										key]);
 								result[key] = (type == "cds.Integer" ? (isNaN(result[key]) || result[key] == '' ? 0 : parseInt(result[key])) : result[key]);
 								// result[key] = (type=="cds.String" ? (typeof result[key] === 'string' ? result[key] : result[key].toString()) : result[key]);
 
@@ -1146,7 +1235,8 @@ module.exports = async(srv) => {
 							} else if (result.THIRD_LEVEL_APPROVER != null && result.THIRD_LEVEL_APPROVER != '' && result.THIRD_LEVEL_APPROVER != 'N/A') {
 								totallevel = '3';
 								finalapprover = result.THIRD_LEVEL_APPROVER;
-							} else if (result.SECOND_LEVEL_APPROVER != null && result.SECOND_LEVEL_APPROVER != '' && result.SECOND_LEVEL_APPROVER != 'N/A') {
+							} else if (result.SECOND_LEVEL_APPROVER != null && result.SECOND_LEVEL_APPROVER != '' && result.SECOND_LEVEL_APPROVER !=
+								'N/A') {
 								totallevel = '2'
 								finalapprover = result.SECOND_LEVEL_APPROVER;
 							} else {
@@ -1673,7 +1763,8 @@ module.exports = async(srv) => {
 			Object.keys(claimList).forEach(key => {
 
 				var hidden = false;
-				if (claim == "Pay Upload Temp" && (key == "ID" || key == "SCHOLAR_UNIV" || key == "SCHOLAR_SCHEME" || key == "SCHOLAR_DISC" || key ==
+				if (claim == "Pay Upload Temp" && (key == "ID" || key == "SCHOLAR_UNIV" || key == "SCHOLAR_SCHEME" || key == "SCHOLAR_DISC" ||
+						key ==
 						"GL_ACCOUNT" || key == "UPLOAD_REFERENCE_ID")) {
 					hidden = true
 				}
@@ -1971,4 +2062,166 @@ module.exports = async(srv) => {
 		var sFormattedDate = splittedDate.join(" ");
 		return sFormattedDate;
 	}
+
+	function _appendQueryForChargePayout(req) {
+		var sAPPENDQUERY = ``,
+			sWHERE = ``;
+		var otherFilter = [];
+		let Cluster = req.data.Cluster.replace("[", "(").replace("]", ")").replace(/"/g, "'");
+		let SCH_SCHEME = req.data.SCH_SCHEME.replace("[", "(").replace("]", ")").replace(/"/g, "'");
+		let YearOfAward = req.data.YearOfAward.replace("[", "(").replace("]", ")").replace(/"/g, "'");
+		let Sch_Status = req.data.Sch_Status.replace("[", "(").replace("]", ")").replace(/"/g, "'");
+		if (Cluster != "") {
+			otherFilter.push(`PAYOUT.FUNDING_CLUSTER in ${Cluster}`)
+		}
+		if (SCH_SCHEME != "") {
+			otherFilter.push(`PAYOUT.SCHOLAR_SCHEME in ${SCH_SCHEME}`)
+		}
+		if (YearOfAward != "") {
+			otherFilter.push(`PAYOUT.YEAR_OF_AWARD in ${YearOfAward}`)
+		}
+		// if (Sch_Status != "") {
+		// 	otherFilter.push(`PAYOUT.CLAIM_REFERENCE = '${Sch_Status}'`)
+		// }
+		// if (Post_Period != "") {
+		// 	otherFilter.push(`PAYOUT.CLAIM_REFERENCE = '${CLAIM_REFERENCE}'`)
+		// }
+		// 	if(Personal_Subarea != ""){
+		// 		 employeejob = ` INNER JOIN "SF_EMPJOB" as EMPJOB
+		// on EMPJOB."USERID" = APP."EMPLOYEE_ID"`;
+
+		// 		otherFilter.push( `EMPJOB."LOCATION" = '${Personal_Subarea}' AND EMPJOB."STARTDATE" <= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS') 
+		// and EMPJOB."ENDDATE" >= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS')`)
+		// 	}
+		for (index in otherFilter) {
+			if (index == 0) {
+				if (sWHERE == ``) {
+					sWHERE += ` WHERE ` + otherFilter[index];
+				} else {
+					sWHERE += ` AND ` + otherFilter[index];
+				}
+
+			} else {
+				sWHERE += ` AND ` + otherFilter[index];
+			}
+
+		}
+
+		// 	//REP LOGS STATUS
+		// 	if (sWHERE == ``) {
+		// 		sWHERE += `WHERE (Replication_Logs."REP_STATUS" <> 'Error' or Replication_Logs."REP_STATUS" is Null)`;
+		// 	} else {
+		// 		sWHERE += ` AND (Replication_Logs."REP_STATUS" <> 'Error' or Replication_Logs."REP_STATUS" is Null)`;
+		// 	}
+
+		var sAPPENDQUERY = sWHERE;
+		console.log(sAPPENDQUERY);
+		// var sAPPENDQUERY = CLAIMJOIN + sWHERE;
+		return sAPPENDQUERY;
+		// return sAPPENDQUERY
+	}
+
+	srv.on('chargePayoutReport', async(req, next) => {
+		let tx = cds.transaction(req);
+		let Cluster = req.data.Cluster;
+		let SCH_SCHEME = req.data.SCH_SCHEME;
+		let YearOfAward = req.data.YearOfAward;
+		let Sch_Status = req.data.Sch_Status;
+		let Post_PeriodF = req.data.Post_FromDate;
+		let Post_PeriodT = req.data.Post_ToDate;
+
+		//------Set filter for report
+		var sAPPENDQUERY = _appendQueryForChargePayout(req);
+
+		var payout = [{
+			table: `"SF_CHARGE_PAYABLE_OUT"(postingFrom => '${Post_PeriodF}' ,postingTo => '${Post_PeriodT}')`,
+			label: "Payable"
+		}, {
+			table: `"SF_SCHOLAR_EXPENSE"(postingFrom => '${Post_PeriodF}' ,postingTo => '${Post_PeriodT}')`,
+			label: "Scholarship Expense Overview"
+		}, {
+			table: `"SF_INDIVIDUAL_SCH_EXP"(postingFrom => '${Post_PeriodF}' ,postingTo => '${Post_PeriodT}')`,
+			label: "Individual Scholar Expenses"
+		}];
+
+		var worksheetColoumn = [],
+			worksheetarray = [],
+			worksheetColoumnItem = [], //new ItemWorksheet
+			worksheetarrayItem = []; //new ItemWorksheet
+
+		const workbook = new Excel.Workbook();
+
+		//-------------- Claims without lineitems retrieval------------------------
+		for (let payoutIndex in payout) {
+			worksheetColoumn = [];
+			if (payout[payoutIndex].label !== "Individual Scholar Expenses") {
+				var payoutList = await tx.run(
+					`SELECT PAYOUT.* FROM ${payout[payoutIndex].table} as PAYOUT` + sAPPENDQUERY);
+
+				//------------Creating the Excel Coloumn using the Table Key fields
+				if (payoutList.length != 0) {
+					Object.keys(payoutList[0]).forEach(key => {
+						worksheetColoumn.push({
+							header: key,
+							key: key
+						})
+					})
+
+					worksheetarray[payoutIndex] = workbook.addWorksheet(payout[payoutIndex].label);
+					worksheetarray[payoutIndex].properties.outlineProperties = {
+						summaryBelow: false,
+						summaryRight: false,
+					};
+					worksheetarray[payoutIndex].columns = worksheetColoumn;
+					worksheetarray[payoutIndex].addRows(payoutList);
+					// worksheetarray[claimIndex].getRow(3).outlineLevel = 1;
+				}
+			} else {
+				var scholarArray = await tx.run(
+					`SELECT distinct PAYOUT.SCHOLAR_ID FROM ${payout[payoutIndex].table} as PAYOUT` + sAPPENDQUERY);
+				var payoutList = await tx.run(
+					`SELECT PAYOUT.* FROM ${payout[payoutIndex].table} as PAYOUT` + sAPPENDQUERY);
+
+				if (payoutList.length != 0) {
+					Object.keys(payoutList[0]).forEach(key => {
+						worksheetColoumn.push({
+							header: key,
+							key: key
+						})
+					})
+					for (var index in scholarArray) {
+
+						var individualList = payoutList.filter(getScholar);
+
+						function getScholar(item) {
+							return item.SCHOLAR_ID == scholarArray[index].SCHOLAR_ID;
+						}
+						// worksheetarray[payoutIndex+index] = workbook.addWorksheet(payout[payoutIndex].label+" "+scholarArray[index].EMPLOYEE_ID);
+						worksheetarray[payoutIndex + index] = workbook.addWorksheet(scholarArray[index].SCHOLAR_ID + " Expenses")
+						worksheetarray[payoutIndex + index].properties.outlineProperties = {
+							summaryBelow: false,
+							summaryRight: false,
+						};
+						worksheetarray[payoutIndex + index].columns = worksheetColoumn;
+						worksheetarray[payoutIndex + index].addRows(individualList);
+						// worksheetarray[claimIndex].getRow(3).outlineLevel = 1;
+					}
+				}
+			}
+		}
+
+		if (workbook.worksheets.length != 0) {
+			const ConvertToBase64 = async() => {
+				const fs = require("fs");
+				const buffer = await workbook.xlsx.writeBuffer();
+				return Buffer.from(buffer).toString("base64");
+			};
+			let rt = await ConvertToBase64();
+			return rt;
+
+		} else {
+			return req.reject(404, "There are no data to export for the selected criteria");
+		}
+	});
+
 }

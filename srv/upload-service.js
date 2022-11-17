@@ -9,6 +9,15 @@ module.exports = async function(srv) {
     } = cds.entities("sap.poc.upload");
     srv.before('CREATE', `FileHeader`, (req, res)=>{
          if (req.data) {
+         	var contentBase=req.data.Items[0].content.split(';base64')[0];
+            var matchedValue= contentBase.match('spreadsheet|pdf|jpg|jpeg|png|excel')
+            if (matchedValue === null){
+            	return req.reject(401, "Files with extension other than pdf,jpg,jpeg,png,xls,xlsx cannot be uploaded");
+            }
+         }
+    });
+    srv.before('CREATE', `FileItems`, (req, res)=>{
+         if (req.data) {
              
          }
     });

@@ -15,7 +15,8 @@ entity FileItems: cuid, managed {
     createdName: String(255);
     @Core.IsMediaType : true
     mediaType : String; // @Core.IsMediaType;
-    content : LargeBinary @Core.MediaType: mediaType @Core.ContentDisposition.Filename: fileName;
+    @Core.MediaType: mediaType @Core.ContentDisposition.Filename: fileName
+    content : LargeBinary;
     parent: Association to FileHeader;
 }
 

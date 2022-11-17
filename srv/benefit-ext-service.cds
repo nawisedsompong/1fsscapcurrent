@@ -37,7 +37,9 @@ service CalculationService @(path:'/calclaim')@(impl:'./benefit-ext-service.js')
    entity THREAD_JOB_INFO as projection on cal.THREAD_JOB_INFO;
    entity PAY_UP as projection on cal.PAY_UP;
    entity EXPORT_REPORT_STATUS as projection on cal.EXPORT_REPORT_STATUS;
-   function exportExcelClaim(USERID:String,fromDate:Date,toDate:Date,CORDIN:String,Personnel_Area:String,Personal_Subarea:String,Pay_Grade:String,Division:String,HR_ADMIN:String,CLAIM_STATUS:String,CLAIM_TYPE:String,CATEGORY_CODE:String,CLAIM_REFERENCE :String) returns String;
+   function exportExcelClaim(USERID:String,fromDate:Date,toDate:Date,CORDIN:String,Personnel_Area:String,Personal_Subarea:String,Pay_Grade:String,Division:String,HR_ADMIN:String,CLAIM_STATUS:String,CLAIM_TYPE:String,CATEGORY_CODE:String,CLAIM_REFERENCE :String,CLAIM_CODE:String) returns String;
+   function exportYtdReport() returns String;
+   function chargePayoutReport(Cluster:String,SCH_SCHEME:String,YearOfAward:String,Sch_Status:String,Post_FromDate:Date,Post_ToDate:Date) returns String;
    function exportExcelTemplate(CLAIM:String) returns String;
    function getUploadErrorLog(id:String) returns {id:String; error:String;success:String};
    function getPay_Up_LineItems(id:String, paymentTo:String(7)) returns array of {

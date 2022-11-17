@@ -255,7 +255,8 @@ BEGIN
 			SELECT
 				cs."EMPLOYEE_ID",
 				cs."CLAIM_REFERENCE",
-				cs."CLAIM_DATE",
+				-- cs."CLAIM_DATE",
+				CURRENT_DATE,
 				NULL,
 				:CLAIM_STATUS_VALUE,
 				cs."EMPLOYEE_ID",

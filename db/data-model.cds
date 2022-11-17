@@ -602,6 +602,7 @@ entity Benefit_Entitlement_Adjust{
 		key Year					: String(4);
 		key	Claim_code				: String(50);
 			Adjustment				: Decimal(10,2);
+			Remarks 				: String(500) @assert.format: '^(?![+=@-]).*'; //CSV INJECTION PREVENTION
 }
 // Transportation 
 //   define view claimApproverView (input1:String) as
@@ -1523,6 +1524,17 @@ entity Benefit_Entitlement_Adjust{
     		TILE_DESC: String(100);
     }
     
+    entity DISBURSE_CLAIMCODE{
+    	key Disbursetype : String;
+    	key Claim_Category: String;
+    	key Claim_Code  : String;
+    		Tution_flag : String;
+    		Stipend_flag :String;
+    		SDF_flag	:String;
+    		Clinical_flag: String;
+    		Others_flag :String;
+    }
+    
     define view Claim_Employee_Company as select from Claim_Status as status
     left join sf.EmpJob as Job
     on status.Owner = Job.userId
@@ -1586,7 +1598,7 @@ distinct{
     	 Claim_emp_comp.company
 };
 
-define view claim_coord_employee with parameters claim_Cordinator:String(20) as select from CLAIM_COORDINATOR as coordinate
+define view claim_coord_employee_withReportcount with parameters claim_Cordinator:String(20) as select from CLAIM_COORDINATOR as coordinate
 inner join sf.EmpJob as EmpJob
 on coordinate.COORDINATOR = :claim_Cordinator
 and ((EmpJob.userId = coordinate.EMPLOYEE_ID)
@@ -1603,6 +1615,8 @@ left join sf.PerPersonalView as perperson
 on perperson.personIdExternal = EmpJob.userId
 inner join sf.EmpEmployment as empEmp 
 on empEmp.userId = EmpJob.userId
+inner join sf.PerEmailView as email
+on email.USERID=coordinate.COORDINATOR
 distinct
 {
 	key EmpJob.userId as EmployeeID,
@@ -1614,18 +1628,43 @@ distinct
     	case when (empEmp.startDate <= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS') 
 		and (empEmp.endDate >= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS')
 		or empEmp.endDate IS NULL)) then 
-		'X' else '' end as UserStatus:String
+		'X' else '' end as UserStatus:String,
+		case when coordinate.REPORT = 'Yes' then 1
+		else 2 end as countReport : Integer
 }
 where coordinate.STARTDATE <= CURRENT_DATE 
 and coordinate.ENDDATE >= CURRENT_DATE;
 
-							
-				
+
+define view claim_coord_employee_max with parameters claim_Cordinator:String(20) 
+as select from claim_coord_employee_withReportcount(claim_Cordinator: :claim_Cordinator) as coordinate
+{
+	EmployeeID,
+	max(countReport) as max_count
+}
+group by EmployeeID;
+
+define view claim_coord_employee with parameters claim_Cordinator:String(20) as select from claim_coord_employee_max(claim_Cordinator: :claim_Cordinator) as coordinate
+inner join claim_coord_employee_withReportcount(claim_Cordinator: :claim_Cordinator) as coordinateoriginal 
+on coordinateoriginal.EmployeeID = coordinate.EmployeeID
+and coordinateoriginal.countReport = coordinate.max_count
+{
+	coordinateoriginal.EmployeeID,
+	coordinateoriginal.firstName,
+	coordinateoriginal.lastName,
+	coordinateoriginal.REPORT,
+	coordinateoriginal.SUBMIT,
+	coordinateoriginal.UserStatus,
+	coordinateoriginal.countReport
+};
+
 define view Approval_Claim_Coordinator with parameters claim_Cordinator:String(20) as select from claim_coord_employee(claim_Cordinator: :claim_Cordinator) as coordinate_employee
 inner join Approval_Histroy as hist
 on coordinate_employee.EmployeeID = hist.CLAIM_OWNER_ID
 left join listwithclaimDetailsneeded as claimItemMax
 on claimItemMax.PARENT_CLAIM_REF = hist.CLAIM_REFERENCE
+inner join sf.EmpEmployment as empEmp 
+on hist.CLAIM_OWNER_ID = empEmp.userId
 {
 	key  hist.Claim_Ref_Number,
 	key  hist.CLAIM_REFERENCE,
@@ -1648,7 +1687,8 @@ on claimItemMax.PARENT_CLAIM_REF = hist.CLAIM_REFERENCE
     	 claimItemMax.CLAIM_CODE as LINE_CLAIM_CODE,
 		 claimItemMax.CLAIM_CATEGORY as LINE_CLAIM_CATEGORY,
 		 coordinate_employee.REPORT,
-		 coordinate_employee.SUBMIT
+		 coordinate_employee.SUBMIT,
+		 coordinate_employee.UserStatus
 };
 
 define view ITEM_CORD with parameters claim_Cordinator:String(20) as select from PAY_UP_LINEITEM_CLAIM as PAY_ITEM
@@ -1680,7 +1720,8 @@ on claimItemMax.PARENT_CLAIM_REF = hist.CLAIM_REFERENCE
     	 claimItemMax.CLAIM_CODE as LINE_CLAIM_CODE,
 		 claimItemMax.CLAIM_CATEGORY as LINE_CLAIM_CATEGORY,
 		 coordinate_employee.REPORT,
-		 coordinate_employee.SUBMIT
+		 coordinate_employee.SUBMIT,
+		 coordinate_employee.UserStatus
 };
 
 
@@ -1836,6 +1877,8 @@ distinct{
 define view LINEITEM_EMPLOYEE with parameters EMP_LINEITEM:String(20) as select from PAY_UP_LINEITEM_CLAIM as PAY_ITEM
 inner join app_histwithCancel as hist 
 on hist.CLAIM_REFERENCE = PAY_ITEM.parent.CLAIM_REFERENCE
+left join sf.PerEmailView as email
+on email.USERID=PAY_ITEM.SCHOLAR_ID
 {
 	     hist.Claim_Ref_Number,
 	     hist.CLAIM_REFERENCE,
@@ -1891,16 +1934,148 @@ on hist.CLAIM_REFERENCE = PAY_ITEM.parent.CLAIM_REFERENCE
 		 hist.LINE_ITEM_INVNUMBER,
 		 hist.LINE_ITEM_CURRENCY,
 		 hist.CANCEL_PARENT_CLAIM,
-		 hist.Entitlement_Type
+		 hist.Entitlement_Type,
+		 email.USERID as email_user
 } where PAY_ITEM.SCHOLAR_ID =:EMP_LINEITEM;
 // or PAY_ITEM.CLAIM_REFERENCE =:CLAIM_REFERENCE 
 // or hist.CLAIM_OWNER_ID =:EMP_LINEITEM;
 
 define view app_histwithlineItem with parameters EMP_LINEITEM:String(20) as select from LINEITEM_EMPLOYEE(EMP_LINEITEM : :EMP_LINEITEM) as PAY_ITEM {*} 
+where email_user =:EMP_LINEITEM
 UNION
-select from app_histwithCancel as hist {*} 
+select from app_histWithSessionUser(EMP_LINEITEM : :EMP_LINEITEM) as hist {*}
+where  email_user =:EMP_LINEITEM;
+
+define view app_histwithlineItem_admin with parameters EMP_LINEITEM:String(20) as select from LINEITEM_EMPLOYEE(EMP_LINEITEM : :EMP_LINEITEM) as PAY_ITEM {*}
+UNION
+select from app_histWithSessionUser(EMP_LINEITEM : :EMP_LINEITEM) as hist {*};
+
+define view app_histWithSessionUser with parameters EMP_LINEITEM:String(20) as select from app_histwithCancel as hist
+left join sf.PerEmailView as email
+on email.USERID=hist.CLAIM_OWNER_ID
+{
+		 hist.Claim_Ref_Number,
+	     hist.CLAIM_REFERENCE,
+    	 hist.EMPLOYEE_ID,
+    	 hist.EMPLOYEE_NAME,
+    	 hist.CLAIM_TYPE,
+    	 hist.CLAIM_DATE,
+    	 hist.AMOUNT,
+    	 hist.CLAIM_STATUS,
+    	 hist.CATEGORY_CODE,
+    	 hist.CLAIM_OWNER_ID,
+    	 hist.CLAIM_CATEGORY,
+    	 hist.SUBMITTED_BY,
+    	 hist.ESTIMATEPAYMENTDATE,
+    	 hist.RECEIPT_DATE,
+    	 hist.Claim_Owner_FirstName,
+    	 hist.Claim_Owner_LastName,
+    	 hist.Claim_Owner_FullName,
+    	 hist.Rep_Status,
+    	 hist.postingCutoffDate,
+    	 hist.CANCELAFTERAPPROVE,
+    	 hist.cancelreference,
+    	 hist.Delegation1,
+    	 hist.Delegation2,
+    	 hist.Delegation3,
+    	 hist.Delegation4,
+    	 hist.Reroute1,
+    	 hist.Reroute2,
+    	 hist.Reroute3,
+    	 hist.Reroute4,
+    	 hist.Response_Date,
+    	 hist.Total_Level,
+    	 hist.Current_Level,
+    	 hist.APPROVER1_STATUS,
+    	 hist.APPROVER2_STATUS,
+    	 hist.APPROVER3_STATUS,
+    	 hist.Approver1,
+    	 hist.Approver2,
+    	 hist.Approver3,
+    	 hist.Approver4,
+    	 hist.payGrade,
+	     hist.Personel_Area,
+		 hist.Personel_SubArea,
+		 hist.department,
+		 hist.division,
+		 hist.SPONSOR_INSTITUTION, 
+		 hist.SPECIALISATION,
+		 hist.LINE_CLAIM_CODE,
+	     hist.LINE_CLAIM_CATEGORY,
+		 hist.LINE_ITEM_CLAIMAMT,
+		 hist.LINE_ITEM_DESC,
+		 hist.LINE_INVDATE,
+		 hist.LINE_ITEM_INVNUMBER,
+		 hist.LINE_ITEM_CURRENCY,
+		 hist.CANCEL_PARENT_CLAIM,
+		 hist.Entitlement_Type,
+		 email.USERID as email_user
+}
 where hist.CLAIM_OWNER_ID =:EMP_LINEITEM
 and hist.CATEGORY_CODE <> 'PAY_UP';
+
+
+define view app_histWithCancel_SessionUser as select from app_histwithCancel as hist
+inner join sf.PerEmailView as email
+on email.USERID=hist.EMPLOYEE_ID
+{
+		 hist.Claim_Ref_Number,
+	     hist.CLAIM_REFERENCE,
+    	 hist.EMPLOYEE_ID,
+    	 hist.EMPLOYEE_NAME,
+    	 hist.CLAIM_TYPE,
+    	 hist.CLAIM_DATE,
+    	 hist.AMOUNT,
+    	 hist.CLAIM_STATUS,
+    	 hist.CATEGORY_CODE,
+    	 hist.CLAIM_OWNER_ID,
+    	 hist.CLAIM_CATEGORY,
+    	 hist.SUBMITTED_BY,
+    	 hist.ESTIMATEPAYMENTDATE,
+    	 hist.RECEIPT_DATE,
+    	 hist.Claim_Owner_FirstName,
+    	 hist.Claim_Owner_LastName,
+    	 hist.Claim_Owner_FullName,
+    	 hist.Rep_Status,
+    	 hist.postingCutoffDate,
+    	 hist.CANCELAFTERAPPROVE,
+    	 hist.cancelreference,
+    	 hist.Delegation1,
+    	 hist.Delegation2,
+    	 hist.Delegation3,
+    	 hist.Delegation4,
+    	 hist.Reroute1,
+    	 hist.Reroute2,
+    	 hist.Reroute3,
+    	 hist.Reroute4,
+    	 hist.Response_Date,
+    	 hist.Total_Level,
+    	 hist.Current_Level,
+    	 hist.APPROVER1_STATUS,
+    	 hist.APPROVER2_STATUS,
+    	 hist.APPROVER3_STATUS,
+    	 hist.Approver1,
+    	 hist.Approver2,
+    	 hist.Approver3,
+    	 hist.Approver4,
+    	 hist.payGrade,
+	     hist.Personel_Area,
+		 hist.Personel_SubArea,
+		 hist.department,
+		 hist.division,
+		 hist.SPONSOR_INSTITUTION, 
+		 hist.SPECIALISATION,
+		 hist.LINE_CLAIM_CODE,
+	     hist.LINE_CLAIM_CATEGORY,
+		 hist.LINE_ITEM_CLAIMAMT,
+		 hist.LINE_ITEM_DESC,
+		 hist.LINE_INVDATE,
+		 hist.LINE_ITEM_INVNUMBER,
+		 hist.LINE_ITEM_CURRENCY,
+		 hist.CANCEL_PARENT_CLAIM,
+		 hist.Entitlement_Type
+};
+
 
 define view app_histwithlineItem_ClaimSearch with parameters EMP_LINEITEM:String(20) as select from app_histwithlineItem(EMP_LINEITEM : :EMP_LINEITEM) as PAY_ITEM
 left join listof_lineitems_all as lineitem
@@ -2272,6 +2447,8 @@ and AdminClaim.Company = EmpJob.company and AdminClaim.Start_Date <= $now and Ad
 define view app_delegation with parameters delegator_id:String(20) as select from app_histwithCancel as hist
 inner join DELEGATOR as delegator 
 on hist.EMPLOYEE_ID = delegator.APPROVER_ID
+left join sf.PerEmailView as email
+on email.USERID=delegator.DELEGATOR_ID
 {
 			 hist.Claim_Ref_Number,
 			 hist.CLAIM_REFERENCE,
@@ -2316,7 +2493,8 @@ on hist.EMPLOYEE_ID = delegator.APPROVER_ID
 }
 where delegator.DELEGATOR_ID = :delegator_id
 AND delegator.START_DATE <= $now
-and delegator.END_DATE >= $now;
+and delegator.END_DATE >= $now
+and email.USERID = :delegator_id;
 
 define view SDFRandClaim  as select from SDFR_MASTER_CLAIM as SDFR
 left join SDFC_MASTER_CLAIM as SDFC 
@@ -2359,6 +2537,8 @@ on SDFR.CLAIM_REFERENCE <> SDFC.SDF_REFERENCE
 define view sdfandClaim  as select from SDFR_MASTER_CLAIM as SDFR
 left join SDFC_MASTER_CLAIM as SDFC 
 on SDFR.CLAIM_REFERENCE = SDFC.SDF_REFERENCE
+inner join sf.PerEmailView as email
+on email.USERID=SDFC.EMPLOYEE_ID
 {
 			SDFR.EMPLOYEE_ID,
 			SDFR.CLAIM_REFERENCE,
@@ -2400,7 +2580,10 @@ on SDFR.CLAIM_REFERENCE = SDFC.SDF_REFERENCE
 
 define view cprandclaim  as select from CPR_CLAIM as CPR
 left join CPC_MASTER_CLAIM as CPC 
-on CPR.CLAIM_REFERENCE = CPC.CPR_REFERENCE{
+on CPR.CLAIM_REFERENCE = CPC.CPR_REFERENCE
+inner join sf.PerEmailView as email
+on email.USERID=CPR.EMPLOYEE_ID
+{
 	CPR.EMPLOYEE_ID	,
 		 CPR.CLAIM_REFERENCE,	
 		 CPR.CLAIM_DATE,
@@ -2440,7 +2623,10 @@ on GL.SCHOLAR_SCHEME=sch.cust_scholarshipScheme
 LEFT JOIN sf.BANK_ACC as BANK
 on sch.externalCode= BANK.externalCode
 LEFT JOIN VENDOR as VENDOR
-on VENDOR.SCHOLAR_SCHEME= sch.cust_scholarshipScheme{
+on VENDOR.SCHOLAR_SCHEME= sch.cust_scholarshipScheme
+inner join sf.PerEmailView as email
+on email.USERID=sch.externalCode
+{
 	GL.GL_ACC,
 	GL.START_DATE,
 	GL.END_DATE,
@@ -2624,87 +2810,448 @@ key	LINEITEM_TABLE3.CLAIM_REFERENCE as LINE_ITEM_REFERENCE_NUMBER,
 }
 union all select from SMS_PAY_UP_PAYMENT_REPORT {*}; 
 
-define view DISBURSMENT_CHARGEOUT_CLAIM  as select from SDFC_LINEITEM_CLAIM {
+//Start Charge pay out Report Sahas MOHHSCH
+define view DISBURSMENT_CHARGEOUT_CLAIM  as select from SDFC_LINEITEM_CLAIM as claim
+left join DISBURSE_CLAIMCODE as codelist
+on codelist.Claim_Code = claim.CLAIM_CODE
+{
 	EMPLOYEE_ID,
+	CLAIM_DATE,
 	parent.CLAIM_REFERENCE as PARENT_CLAIM_REF,
 	CLAIM_REFERENCE,
 		CLAIM_CODE,
 	CLAIM_CATEGORY,
-	case when CLAIM_CODE IS NOT NULL then ''
-    end AS ITEM_DESC:String,
+	POST_DATE,
+	POST_CURRENCY,
+	POST_CLAIM_AMOUNT,
+	ITEM_DESC,
     case when CLAIM_CODE IS NOT NULL then ''
     end AS INVOICE_DATE:String,
     case when CLAIM_CODE IS NOT NULL then ''
     end AS INVOICE_NUMBER:String,
 	CURRENCY, 
-	CLAIM_AMOUNT
+	CLAIM_AMOUNT,
+	case when 1 <= Month(POST_DATE) and 3 >= Month(POST_DATE) then CLAIM_AMOUNT
+	else '0.00' end as Q1_AMT,
+	case when 4 <= Month(POST_DATE) and 6 >= Month(POST_DATE) then CLAIM_AMOUNT
+	else '0.00' end as Q2_AMT,
+	case when 7 <= Month(POST_DATE) and 9 >= Month(POST_DATE) then CLAIM_AMOUNT
+	else '0.00' end as Q3_AMT,
+	case when 10 <= Month(POST_DATE) and 12 >= Month(POST_DATE) then CLAIM_AMOUNT
+	else '0.00' end as Q4_AMT,
+	case when 1 <= Month(POST_DATE) and 3 >= Month(POST_DATE) and codelist.Tution_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q1_AMT_tution,
+	case when 4 <= Month(POST_DATE) and 6 >= Month(POST_DATE) and codelist.Tution_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q2_AMT_tution,
+	case when 7 <= Month(POST_DATE) and 9 >= Month(POST_DATE) and codelist.Tution_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q3_AMT_tution,
+	case when 10 <= Month(POST_DATE) and 12 >= Month(POST_DATE) and codelist.Tution_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q4_AMT_tution,
+	case when 1 <= Month(POST_DATE) and 3 >= Month(POST_DATE) and codelist.Stipend_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q1_AMT_Stipend,
+	case when 4 <= Month(POST_DATE) and 6 >= Month(POST_DATE) and codelist.Stipend_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q2_AMT_Stipend,
+	case when 7 <= Month(POST_DATE) and 9 >= Month(POST_DATE) and codelist.Stipend_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q3_AMT_Stipend,
+	case when 10 <= Month(POST_DATE) and 12 >= Month(POST_DATE) and codelist.Stipend_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q4_AMT_Stipend,
+	case when 1 <= Month(POST_DATE) and 3 >= Month(POST_DATE) and codelist.SDF_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q1_AMT_SDF,
+	case when 4 <= Month(POST_DATE) and 6 >= Month(POST_DATE) and codelist.SDF_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q2_AMT_SDF,
+	case when 7 <= Month(POST_DATE) and 9 >= Month(POST_DATE) and codelist.SDF_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q3_AMT_SDF,
+	case when 10 <= Month(POST_DATE) and 12 >= Month(POST_DATE) and codelist.SDF_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q4_AMT_SDF,	
+	case when 1 <= Month(POST_DATE) and 3 >= Month(POST_DATE) and codelist.Clinical_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q1_AMT_Clinical,
+	case when 4 <= Month(POST_DATE) and 6 >= Month(POST_DATE) and codelist.Clinical_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q2_AMT_Clinical,
+	case when 7 <= Month(POST_DATE) and 9 >= Month(POST_DATE) and codelist.Clinical_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q3_AMT_Clinical,
+	case when 10 <= Month(POST_DATE) and 12 >= Month(POST_DATE) and codelist.Clinical_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q4_AMT_Clinical,
+	case when 1 <= Month(POST_DATE) and 3 >= Month(POST_DATE) and codelist.Others_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q1_AMT_Other,
+	case when 4 <= Month(POST_DATE) and 6 >= Month(POST_DATE) and codelist.Others_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q2_AMT_Other,
+	case when 7 <= Month(POST_DATE) and 9 >= Month(POST_DATE) and codelist.Others_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q3_AMT_Other,
+	case when 10 <= Month(POST_DATE) and 12 >= Month(POST_DATE) and codelist.Others_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q4_AMT_Other
 }
 union
-select from SDFR_LINEITEM_CLAIM {
+// select from SDFR_LINEITEM_CLAIM as claim
+// left join DISBURSE_CLAIMCODE as codelist
+// on codelist.Claim_Code = claim.CLAIM_CODE
+// {
+// 	EMPLOYEE_ID,
+// 	CLAIM_DATE,
+// 	parent.CLAIM_REFERENCE as PARENT_CLAIM_REF,
+// 	CLAIM_REFERENCE,
+// 		CLAIM_CODE,
+// 	CLAIM_CATEGORY,
+// 	'0000-00-00' as POST_DATE,
+// 	'' as POST_CURRENCY,
+// 	'0.00' as POST_CLAIM_AMOUNT,
+// 	case when CLAIM_CODE IS NOT NULL then ''
+//     end AS ITEM_DESC:String,
+//     case when CLAIM_CODE IS NOT NULL then '' 
+//     end AS INVOICE_DATE:String,
+//     case when CLAIM_CODE IS NOT NULL then ''
+//     end AS INVOICE_NUMBER:String,
+// 	CURRENCY, 
+// 	CLAIM_AMOUNT,
+// 	case when 1 <= Month(CLAIM_DATE) and 3 >= Month(CLAIM_DATE) then CLAIM_AMOUNT
+// 	else '0.00' end as Q1_AMT,
+// 	case when 4 <= Month(CLAIM_DATE) and 6 >= Month(CLAIM_DATE) then CLAIM_AMOUNT
+// 	else '0.00' end as Q2_AMT,
+// 	case when 7 <= Month(CLAIM_DATE) and 9 >= Month(CLAIM_DATE) then CLAIM_AMOUNT
+// 	else '0.00' end as Q3_AMT,
+// 	case when 10 <= Month(CLAIM_DATE) and 12 >= Month(CLAIM_DATE) then CLAIM_AMOUNT
+// 	else '0.00' end as Q4_AMT,
+// 	case when 1 <= Month(CLAIM_DATE) and 3 >= Month(CLAIM_DATE) and codelist.Tution_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q1_AMT_tution,
+// 	case when 4 <= Month(CLAIM_DATE) and 6 >= Month(CLAIM_DATE) and codelist.Tution_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q2_AMT_tution,
+// 	case when 7 <= Month(CLAIM_DATE) and 9 >= Month(CLAIM_DATE) and codelist.Tution_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q3_AMT_tution,
+// 	case when 10 <= Month(CLAIM_DATE) and 12 >= Month(CLAIM_DATE) and codelist.Tution_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q4_AMT_tution,
+// 	case when 1 <= Month(CLAIM_DATE) and 3 >= Month(CLAIM_DATE) and codelist.Stipend_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q1_AMT_Stipend,
+// 	case when 4 <= Month(CLAIM_DATE) and 6 >= Month(CLAIM_DATE) and codelist.Stipend_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q2_AMT_Stipend,
+// 	case when 7 <= Month(CLAIM_DATE) and 9 >= Month(CLAIM_DATE) and codelist.Stipend_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q3_AMT_Stipend,
+// 	case when 10 <= Month(CLAIM_DATE) and 12 >= Month(CLAIM_DATE) and codelist.Stipend_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q4_AMT_Stipend,
+// 	case when 1 <= Month(CLAIM_DATE) and 3 >= Month(CLAIM_DATE) and codelist.SDF_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q1_AMT_SDF,
+// 	case when 4 <= Month(CLAIM_DATE) and 6 >= Month(CLAIM_DATE) and codelist.SDF_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q2_AMT_SDF,
+// 	case when 7 <= Month(CLAIM_DATE) and 9 >= Month(CLAIM_DATE) and codelist.SDF_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q3_AMT_SDF,
+// 	case when 10 <= Month(CLAIM_DATE) and 12 >= Month(CLAIM_DATE) and codelist.SDF_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q4_AMT_SDF,	
+// 	case when 1 <= Month(CLAIM_DATE) and 3 >= Month(CLAIM_DATE) and codelist.Clinical_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q1_AMT_Clinical,
+// 	case when 4 <= Month(CLAIM_DATE) and 6 >= Month(CLAIM_DATE) and codelist.Clinical_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q2_AMT_Clinical,
+// 	case when 7 <= Month(CLAIM_DATE) and 9 >= Month(CLAIM_DATE) and codelist.Clinical_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q3_AMT_Clinical,
+// 	case when 10 <= Month(CLAIM_DATE) and 12 >= Month(CLAIM_DATE) and codelist.Clinical_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q4_AMT_Clinical,
+// 	case when 1 <= Month(CLAIM_DATE) and 3 >= Month(CLAIM_DATE) and codelist.Others_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q1_AMT_Other,
+// 	case when 4 <= Month(CLAIM_DATE) and 6 >= Month(CLAIM_DATE) and codelist.Others_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q2_AMT_Other,
+// 	case when 7 <= Month(CLAIM_DATE) and 9 >= Month(CLAIM_DATE) and codelist.Others_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q3_AMT_Other,
+// 	case when 10 <= Month(CLAIM_DATE) and 12 >= Month(CLAIM_DATE) and codelist.Others_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q4_AMT_Other
+// }
+// union
+// select from CPC_LINEITEM_CLAIM as claim
+// left join DISBURSE_CLAIMCODE as codelist
+// on codelist.Claim_Code = claim.CLAIM_CODE
+// {
+// 	EMPLOYEE_ID,
+// 	CLAIM_DATE,
+// 	parent.CLAIM_REFERENCE as PARENT_CLAIM_REF,
+// 	CLAIM_REFERENCE,
+// 		CLAIM_CODE,
+// 	CLAIM_CATEGORY,
+// 	POST_DATE,
+// 	POST_CURRENCY,
+// 	POST_CLAIM_AMOUNT,
+// 	ITEM_DESC,
+// 	INVOICE_DATE, 
+// 	INVOICE_NUMBER, 
+// 	CURRENCY, 
+// 	CLAIM_AMOUNT,
+// 	case when 1 <= Month(CLAIM_DATE) and 3 >= Month(CLAIM_DATE) then CLAIM_AMOUNT
+// 	else '0.00' end as Q1_AMT,
+// 	case when 4 <= Month(CLAIM_DATE) and 6 >= Month(CLAIM_DATE) then CLAIM_AMOUNT
+// 	else '0.00' end as Q2_AMT,
+// 	case when 7 <= Month(CLAIM_DATE) and 9 >= Month(CLAIM_DATE) then CLAIM_AMOUNT
+// 	else '0.00' end as Q3_AMT,
+// 	case when 10 <= Month(CLAIM_DATE) and 12 >= Month(CLAIM_DATE) then CLAIM_AMOUNT
+// 	else '0.00' end as Q4_AMT,
+// 	case when 1 <= Month(CLAIM_DATE) and 3 >= Month(CLAIM_DATE) and codelist.Tution_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q1_AMT_tution,
+// 	case when 4 <= Month(CLAIM_DATE) and 6 >= Month(CLAIM_DATE) and codelist.Tution_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q2_AMT_tution,
+// 	case when 7 <= Month(CLAIM_DATE) and 9 >= Month(CLAIM_DATE) and codelist.Tution_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q3_AMT_tution,
+// 	case when 10 <= Month(CLAIM_DATE) and 12 >= Month(CLAIM_DATE) and codelist.Tution_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q4_AMT_tution,
+// 	case when 1 <= Month(CLAIM_DATE) and 3 >= Month(CLAIM_DATE) and codelist.Stipend_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q1_AMT_Stipend,
+// 	case when 4 <= Month(CLAIM_DATE) and 6 >= Month(CLAIM_DATE) and codelist.Stipend_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q2_AMT_Stipend,
+// 	case when 7 <= Month(CLAIM_DATE) and 9 >= Month(CLAIM_DATE) and codelist.Stipend_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q3_AMT_Stipend,
+// 	case when 10 <= Month(CLAIM_DATE) and 12 >= Month(CLAIM_DATE) and codelist.Stipend_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q4_AMT_Stipend,
+// 	case when 1 <= Month(CLAIM_DATE) and 3 >= Month(CLAIM_DATE) and codelist.SDF_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q1_AMT_SDF,
+// 	case when 4 <= Month(CLAIM_DATE) and 6 >= Month(CLAIM_DATE) and codelist.SDF_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q2_AMT_SDF,
+// 	case when 7 <= Month(CLAIM_DATE) and 9 >= Month(CLAIM_DATE) and codelist.SDF_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q3_AMT_SDF,
+// 	case when 10 <= Month(CLAIM_DATE) and 12 >= Month(CLAIM_DATE) and codelist.SDF_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q4_AMT_SDF,	
+// 	case when 1 <= Month(CLAIM_DATE) and 3 >= Month(CLAIM_DATE) and codelist.Clinical_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q1_AMT_Clinical,
+// 	case when 4 <= Month(CLAIM_DATE) and 6 >= Month(CLAIM_DATE) and codelist.Clinical_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q2_AMT_Clinical,
+// 	case when 7 <= Month(CLAIM_DATE) and 9 >= Month(CLAIM_DATE) and codelist.Clinical_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q3_AMT_Clinical,
+// 	case when 10 <= Month(CLAIM_DATE) and 12 >= Month(CLAIM_DATE) and codelist.Clinical_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q4_AMT_Clinical,
+// 	case when 1 <= Month(CLAIM_DATE) and 3 >= Month(CLAIM_DATE) and codelist.Others_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q1_AMT_Other,
+// 	case when 4 <= Month(CLAIM_DATE) and 6 >= Month(CLAIM_DATE) and codelist.Others_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q2_AMT_Other,
+// 	case when 7 <= Month(CLAIM_DATE) and 9 >= Month(CLAIM_DATE) and codelist.Others_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q3_AMT_Other,
+// 	case when 10 <= Month(CLAIM_DATE) and 12 >= Month(CLAIM_DATE) and codelist.Others_flag = 'X' then CLAIM_AMOUNT
+// 	else '0.00' end as Q4_AMT_Other
+// }
+// union
+select from OC_LINEITEM_CLAIM as claim
+left join DISBURSE_CLAIMCODE as codelist
+on codelist.Claim_Code = claim.CLAIM_CODE
+{
 	EMPLOYEE_ID,
+	CLAIM_DATE,
 	parent.CLAIM_REFERENCE as PARENT_CLAIM_REF,
 	CLAIM_REFERENCE,
 		CLAIM_CODE,
 	CLAIM_CATEGORY,
-	case when CLAIM_CODE IS NOT NULL then ''
-    end AS ITEM_DESC:String,
-    case when CLAIM_CODE IS NOT NULL then ''
-    end AS INVOICE_DATE:String,
-    case when CLAIM_CODE IS NOT NULL then ''
-    end AS INVOICE_NUMBER:String,
-	CURRENCY, 
-	CLAIM_AMOUNT
-}
-union
-select from CPC_LINEITEM_CLAIM {
-	EMPLOYEE_ID,
-	parent.CLAIM_REFERENCE as PARENT_CLAIM_REF,
-	CLAIM_REFERENCE,
-		CLAIM_CODE,
-	CLAIM_CATEGORY,
+	POST_DATE,
+	POST_CURRENCY,
+	POST_CLAIM_AMOUNT,
 	ITEM_DESC,
 	INVOICE_DATE, 
 	INVOICE_NUMBER, 
 	CURRENCY, 
-	CLAIM_AMOUNT
+	CLAIM_AMOUNT,
+	case when 1 <= Month(POST_DATE) and 3 >= Month(POST_DATE) then CLAIM_AMOUNT
+	else '0.00' end as Q1_AMT,
+	case when 4 <= Month(POST_DATE) and 6 >= Month(POST_DATE) then CLAIM_AMOUNT
+	else '0.00' end as Q2_AMT,
+	case when 7 <= Month(POST_DATE) and 9 >= Month(POST_DATE) then CLAIM_AMOUNT
+	else '0.00' end as Q3_AMT,
+	case when 10 <= Month(POST_DATE) and 12 >= Month(POST_DATE) then CLAIM_AMOUNT
+	else '0.00' end as Q4_AMT,
+	case when 1 <= Month(POST_DATE) and 3 >= Month(POST_DATE) and codelist.Tution_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q1_AMT_tution,
+	case when 4 <= Month(POST_DATE) and 6 >= Month(POST_DATE) and codelist.Tution_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q2_AMT_tution,
+	case when 7 <= Month(POST_DATE) and 9 >= Month(POST_DATE) and codelist.Tution_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q3_AMT_tution,
+	case when 10 <= Month(POST_DATE) and 12 >= Month(POST_DATE) and codelist.Tution_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q4_AMT_tution,
+	case when 1 <= Month(POST_DATE) and 3 >= Month(POST_DATE) and codelist.Stipend_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q1_AMT_Stipend,
+	case when 4 <= Month(POST_DATE) and 6 >= Month(POST_DATE) and codelist.Stipend_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q2_AMT_Stipend,
+	case when 7 <= Month(POST_DATE) and 9 >= Month(POST_DATE) and codelist.Stipend_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q3_AMT_Stipend,
+	case when 10 <= Month(POST_DATE) and 12 >= Month(POST_DATE) and codelist.Stipend_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q4_AMT_Stipend,
+	case when 1 <= Month(POST_DATE) and 3 >= Month(POST_DATE) and codelist.SDF_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q1_AMT_SDF,
+	case when 4 <= Month(POST_DATE) and 6 >= Month(POST_DATE) and codelist.SDF_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q2_AMT_SDF,
+	case when 7 <= Month(POST_DATE) and 9 >= Month(POST_DATE) and codelist.SDF_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q3_AMT_SDF,
+	case when 10 <= Month(POST_DATE) and 12 >= Month(POST_DATE) and codelist.SDF_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q4_AMT_SDF,	
+	case when 1 <= Month(POST_DATE) and 3 >= Month(POST_DATE) and codelist.Clinical_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q1_AMT_Clinical,
+	case when 4 <= Month(POST_DATE) and 6 >= Month(POST_DATE) and codelist.Clinical_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q2_AMT_Clinical,
+	case when 7 <= Month(POST_DATE) and 9 >= Month(POST_DATE) and codelist.Clinical_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q3_AMT_Clinical,
+	case when 10 <= Month(POST_DATE) and 12 >= Month(POST_DATE) and codelist.Clinical_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q4_AMT_Clinical,
+	case when 1 <= Month(POST_DATE) and 3 >= Month(POST_DATE) and codelist.Others_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q1_AMT_Other,
+	case when 4 <= Month(POST_DATE) and 6 >= Month(POST_DATE) and codelist.Others_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q2_AMT_Other,
+	case when 7 <= Month(POST_DATE) and 9 >= Month(POST_DATE) and codelist.Others_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q3_AMT_Other,
+	case when 10 <= Month(POST_DATE) and 12 >= Month(POST_DATE) and codelist.Others_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q4_AMT_Other
 }
 union
-select from OC_LINEITEM_CLAIM {
+select from CPC_LINEITEM_CLAIM as claim
+left join DISBURSE_CLAIMCODE as codelist
+on codelist.Claim_Code = claim.CLAIM_CODE
+{
 	EMPLOYEE_ID,
+	CLAIM_DATE,
 	parent.CLAIM_REFERENCE as PARENT_CLAIM_REF,
 	CLAIM_REFERENCE,
 		CLAIM_CODE,
 	CLAIM_CATEGORY,
+	POST_DATE,
+	POST_CURRENCY,
+	POST_CLAIM_AMOUNT,
 	ITEM_DESC,
 	INVOICE_DATE, 
 	INVOICE_NUMBER, 
 	CURRENCY, 
-	CLAIM_AMOUNT
-}
-union
-select from CPC_LINEITEM_CLAIM {
-	EMPLOYEE_ID,
-	parent.CLAIM_REFERENCE as PARENT_CLAIM_REF,
-	CLAIM_REFERENCE,
-		CLAIM_CODE,
-	CLAIM_CATEGORY,
-	ITEM_DESC,
-	INVOICE_DATE, 
-	INVOICE_NUMBER, 
-	CURRENCY, 
-	CLAIM_AMOUNT
+	CLAIM_AMOUNT,
+	case when 1 <= Month(POST_DATE) and 3 >= Month(POST_DATE) then CLAIM_AMOUNT
+	else '0.00' end as Q1_AMT,
+	case when 4 <= Month(POST_DATE) and 6 >= Month(POST_DATE) then CLAIM_AMOUNT
+	else '0.00' end as Q2_AMT,
+	case when 7 <= Month(POST_DATE) and 9 >= Month(POST_DATE) then CLAIM_AMOUNT
+	else '0.00' end as Q3_AMT,
+	case when 10 <= Month(POST_DATE) and 12 >= Month(POST_DATE) then CLAIM_AMOUNT
+	else '0.00' end as Q4_AMT,
+	case when 1 <= Month(POST_DATE) and 3 >= Month(POST_DATE) and codelist.Tution_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q1_AMT_tution,
+	case when 4 <= Month(POST_DATE) and 6 >= Month(POST_DATE) and codelist.Tution_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q2_AMT_tution,
+	case when 7 <= Month(POST_DATE) and 9 >= Month(POST_DATE) and codelist.Tution_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q3_AMT_tution,
+	case when 10 <= Month(POST_DATE) and 12 >= Month(POST_DATE) and codelist.Tution_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q4_AMT_tution,
+	case when 1 <= Month(POST_DATE) and 3 >= Month(POST_DATE) and codelist.Stipend_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q1_AMT_Stipend,
+	case when 4 <= Month(POST_DATE) and 6 >= Month(POST_DATE) and codelist.Stipend_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q2_AMT_Stipend,
+	case when 7 <= Month(POST_DATE) and 9 >= Month(POST_DATE) and codelist.Stipend_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q3_AMT_Stipend,
+	case when 10 <= Month(POST_DATE) and 12 >= Month(POST_DATE) and codelist.Stipend_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q4_AMT_Stipend,
+	case when 1 <= Month(POST_DATE) and 3 >= Month(POST_DATE) and codelist.SDF_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q1_AMT_SDF,
+	case when 4 <= Month(POST_DATE) and 6 >= Month(POST_DATE) and codelist.SDF_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q2_AMT_SDF,
+	case when 7 <= Month(POST_DATE) and 9 >= Month(POST_DATE) and codelist.SDF_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q3_AMT_SDF,
+	case when 10 <= Month(POST_DATE) and 12 >= Month(POST_DATE) and codelist.SDF_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q4_AMT_SDF,	
+	case when 1 <= Month(POST_DATE) and 3 >= Month(POST_DATE) and codelist.Clinical_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q1_AMT_Clinical,
+	case when 4 <= Month(POST_DATE) and 6 >= Month(POST_DATE) and codelist.Clinical_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q2_AMT_Clinical,
+	case when 7 <= Month(POST_DATE) and 9 >= Month(POST_DATE) and codelist.Clinical_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q3_AMT_Clinical,
+	case when 10 <= Month(POST_DATE) and 12 >= Month(POST_DATE) and codelist.Clinical_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q4_AMT_Clinical,
+	case when 1 <= Month(POST_DATE) and 3 >= Month(POST_DATE) and codelist.Others_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q1_AMT_Other,
+	case when 4 <= Month(POST_DATE) and 6 >= Month(POST_DATE) and codelist.Others_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q2_AMT_Other,
+	case when 7 <= Month(POST_DATE) and 9 >= Month(POST_DATE) and codelist.Others_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q3_AMT_Other,
+	case when 10 <= Month(POST_DATE) and 12 >= Month(POST_DATE) and codelist.Others_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q4_AMT_Other
 }
 union 
-select from PAY_UP_LINEITEM_CLAIM {
+select from PAY_UP_LINEITEM_CLAIM as claim
+left join DISBURSE_CLAIMCODE as codelist
+on codelist.Claim_Code = claim.CLAIM_CODE
+{
 	EMPLOYEE_ID,
+	CLAIM_DATE,
 	parent.CLAIM_REFERENCE as PARENT_CLAIM_REF,
 	CLAIM_REFERENCE,
 		CLAIM_CODE,
 	CLAIM_CATEGORY,
+    POST_DATE,
+	POST_CURRENCY,
+	POST_CLAIM_AMOUNT,
 	ITEM_DESC,
 	INVOICE_DATE, 
 	INVOICE_NUMBER, 
 	CURRENCY, 
-	CLAIM_AMOUNT
+	CLAIM_AMOUNT,
+	case when 1 <= Month(POST_DATE) and 3 >= Month(POST_DATE) then CLAIM_AMOUNT
+	else '0.00' end as Q1_AMT,
+	case when 4 <= Month(POST_DATE) and 6 >= Month(POST_DATE) then CLAIM_AMOUNT
+	else '0.00' end as Q2_AMT,
+	case when 7 <= Month(POST_DATE) and 9 >= Month(POST_DATE) then CLAIM_AMOUNT
+	else '0.00' end as Q3_AMT,
+	case when 10 <= Month(POST_DATE) and 12 >= Month(POST_DATE) then CLAIM_AMOUNT
+	else '0.00' end as Q4_AMT,
+	case when 1 <= Month(POST_DATE) and 3 >= Month(POST_DATE) and codelist.Tution_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q1_AMT_tution,
+	case when 4 <= Month(POST_DATE) and 6 >= Month(POST_DATE) and codelist.Tution_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q2_AMT_tution,
+	case when 7 <= Month(POST_DATE) and 9 >= Month(POST_DATE) and codelist.Tution_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q3_AMT_tution,
+	case when 10 <= Month(POST_DATE) and 12 >= Month(POST_DATE) and codelist.Tution_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q4_AMT_tution,
+	case when 1 <= Month(POST_DATE) and 3 >= Month(POST_DATE) and codelist.Stipend_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q1_AMT_Stipend,
+	case when 4 <= Month(POST_DATE) and 6 >= Month(POST_DATE) and codelist.Stipend_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q2_AMT_Stipend,
+	case when 7 <= Month(POST_DATE) and 9 >= Month(POST_DATE) and codelist.Stipend_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q3_AMT_Stipend,
+	case when 10 <= Month(POST_DATE) and 12 >= Month(POST_DATE) and codelist.Stipend_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q4_AMT_Stipend,
+	case when 1 <= Month(POST_DATE) and 3 >= Month(POST_DATE) and codelist.SDF_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q1_AMT_SDF,
+	case when 4 <= Month(POST_DATE) and 6 >= Month(POST_DATE) and codelist.SDF_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q2_AMT_SDF,
+	case when 7 <= Month(POST_DATE) and 9 >= Month(POST_DATE) and codelist.SDF_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q3_AMT_SDF,
+	case when 10 <= Month(POST_DATE) and 12 >= Month(POST_DATE) and codelist.SDF_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q4_AMT_SDF,	
+	case when 1 <= Month(POST_DATE) and 3 >= Month(POST_DATE) and codelist.Clinical_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q1_AMT_Clinical,
+	case when 4 <= Month(POST_DATE) and 6 >= Month(POST_DATE) and codelist.Clinical_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q2_AMT_Clinical,
+	case when 7 <= Month(POST_DATE) and 9 >= Month(POST_DATE) and codelist.Clinical_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q3_AMT_Clinical,
+	case when 10 <= Month(POST_DATE) and 12 >= Month(POST_DATE) and codelist.Clinical_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q4_AMT_Clinical,
+	case when 1 <= Month(POST_DATE) and 3 >= Month(POST_DATE) and codelist.Others_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q1_AMT_Other,
+	case when 4 <= Month(POST_DATE) and 6 >= Month(POST_DATE) and codelist.Others_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q2_AMT_Other,
+	case when 7 <= Month(POST_DATE) and 9 >= Month(POST_DATE) and codelist.Others_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q3_AMT_Other,
+	case when 10 <= Month(POST_DATE) and 12 >= Month(POST_DATE) and codelist.Others_flag = 'X' then CLAIM_AMOUNT
+	else '0.00' end as Q4_AMT_Other
 };
+//End Charge pay out Report Sahas MOHHSCH
+
+define view DELEGATOR_CREATED as select from DELEGATOR as delegate
+inner join sf.PerEmailView as email
+on email.USERID=delegate.CREATED_BY
+{
+		START_DATE,
+		END_DATE,
+	    DELEGATOR_ID,
+		APPROVER_ID,
+		FIRST_NAME,
+		LAST_NAME,
+		APP_FIRST_NAME,
+		APP_LAST_NAME,
+		CREATED_BY
+};
+
+define view DELEGATOR_SELF as select from DELEGATOR as delegate
+inner join sf.PerEmailView as email
+on email.USERID=delegate.DELEGATOR_ID
+{
+		START_DATE,
+		END_DATE,
+	    DELEGATOR_ID,
+		APPROVER_ID,
+		FIRST_NAME,
+		LAST_NAME,
+		APP_FIRST_NAME,
+		APP_LAST_NAME,
+		CREATED_BY
+}
 }

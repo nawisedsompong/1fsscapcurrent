@@ -558,6 +558,8 @@ module.exports = async(srv) => {
 						let invoiceDate = (result1[l].INVOICE_DATE) ? dateFormatForClaimReference(result1[l].INVOICE_DATE) : '';
 						let docType = (result1[l].CLAIM_AMOUNT && parseFloat(result1[l].CLAIM_AMOUNT) > 0) ? 'YA' : 'YB';
 						let employeeId = (tableWithLineItem[k].masterTable === 'BENEFIT_PAY_UP_MASTER_CLAIM') ? result1[l].SCHOLAR_ID : result1[l].EMPLOYEE_ID;
+						let randomNum = generateRandomNumBetween(10, 100);
+						let invoiceNumberSubStr = (employeeId) ? employeeId.toString().substring(employeeId.length - 5, employeeId.length) : '';
 						let remarks = result1[l].ITEM_DESC;
 						// Remarks String Sanitization
 						if (remarks) {
@@ -590,7 +592,7 @@ module.exports = async(srv) => {
 								File_Generation_Date: dateFormat(new Date()),
 								Doc_Type: docType,
 								Currency: result1[l].CURRENCY,
-								Invoice_Number: result1[l].INVOICE_NUMBER + employeeId,
+								Invoice_Number: invoiceNumberSubStr + randomNum + '-' + result1[l].INVOICE_NUMBER,
 								Amount: result1[l].CLAIM_AMOUNT,
 								Remarks: remarks
 							});
@@ -612,7 +614,7 @@ module.exports = async(srv) => {
 							FILE_GEN_DATE: dateFormatForClaimReference(new Date()),
 							DOC_TYPE: docType,
 							CURRENCY: result1[l].CURRENCY,
-							INVOICE_NUMBER: result1[l].INVOICE_NUMBER + employeeId,
+							INVOICE_NUMBER: invoiceNumberSubStr + randomNum + '-' + result1[l].INVOICE_NUMBER,
 							HEADER_TEXT: headerText,
 							POSTING_KEY: vendorPostingKey,
 							VENDOR_GL_CODE: vendorCode,
@@ -629,7 +631,7 @@ module.exports = async(srv) => {
 							FILE_GEN_DATE: dateFormatForClaimReference(new Date()),
 							DOC_TYPE: docType,
 							CURRENCY: result1[l].CURRENCY,
-							INVOICE_NUMBER: result1[l].INVOICE_NUMBER + employeeId,
+							INVOICE_NUMBER: invoiceNumberSubStr + randomNum + '-' + result1[l].INVOICE_NUMBER,
 							HEADER_TEXT: headerText,
 							POSTING_KEY: glPostingKey,
 							VENDOR_GL_CODE: glAccount,
@@ -659,7 +661,7 @@ module.exports = async(srv) => {
 							File_Generation_Date: dateFormat(new Date()),
 							Doc_Type: docType,
 							Currency: result1[l].CURRENCY,
-							Invoice_Number: result1[l].INVOICE_NUMBER + employeeId,
+							Invoice_Number: invoiceNumberSubStr + randomNum + '-' + result1[l].INVOICE_NUMBER,
 							Header: headerText,
 							Posting_Key: vendorPostingKey,
 							Vendor_GL_Code: vendorCode,
@@ -688,7 +690,7 @@ module.exports = async(srv) => {
 							File_Generation_Date: dateFormat(new Date()),
 							Doc_Type: docType,
 							Currency: result1[l].CURRENCY,
-							Invoice_Number: result1[l].INVOICE_NUMBER + employeeId,
+							Invoice_Number: invoiceNumberSubStr + randomNum + '-' + result1[l].INVOICE_NUMBER,
 							Header: headerText,
 							Posting_Key: glPostingKey,
 							Vendor_GL_Code: glAccount,
@@ -798,12 +800,8 @@ module.exports = async(srv) => {
 				
 				if (result1.length > 0) {
 					for (let j = 0; j < result1.length; j++) {
-						// let repLogData = await tx.run(
-						// 	`SELECT "REP_STATUS" FROM "SF_REPLICATION_LOGS" WHERE "INTERNAL_CLAIM_REFERENCE"='${result1[j].CLAIM_REFERENCE}' AND "REP_STATUS"='Success'`
-						// );
-						// if (repLogData.length === 0) {
 						result2 = await tx.run(
-							`SELECT "PAY_COMPONENT", "REF_REPLICATION_DATE_TYPE" FROM "BENEFIT_BENEFIT_CLAIM_ADMIN" WHERE "CLAIM_CODE"='${result1[j].CLAIM_CODE}' AND "PAYMENT_MODE"='SF Replication'`
+							`SELECT "PAY_COMPONENT", "REF_REPLICATION_DATE_TYPE" FROM "BENEFIT_BENEFIT_CLAIM_ADMIN" WHERE ("CLAIM_CODE"='${result1[j].CLAIM_CODE}' AND "START_DATE"<='${dateFormat(new Date())}' AND "END_DATE">='${dateFormat(new Date())}') AND "PAYMENT_MODE"='SF Replication'`
 						);
 						if (result2.length === 0) {
 							logs.push({
@@ -936,7 +934,6 @@ module.exports = async(srv) => {
 								});
 							}
 						}
-						// }
 					}
 				}
 			}
@@ -945,10 +942,6 @@ module.exports = async(srv) => {
 				
 				if (result3.length > 0) {
 					for (let l = 0; l < result3.length; l++) {
-						// let repLogData = await tx.run(
-						// 	`SELECT "REP_STATUS" FROM "SF_REPLICATION_LOGS" WHERE "INTERNAL_CLAIM_REFERENCE"='${result3[l].CLAIM_REFERENCE}' AND "REP_STATUS"='Success'`
-						// );
-						// if (repLogData.length === 0) {
 						let claimAmount, claimReference;
 						if (tableWithLineItem[k].masterTable === 'BENEFIT_SP_MASTER_CLAIM' || tableWithLineItem[k].masterTable === 'BENEFIT_SP1_MASTER_CLAIM' ||
 							tableWithLineItem[k].masterTable === 'BENEFIT_SP2_MASTER_CLAIM' || tableWithLineItem[k].masterTable === 'BENEFIT_SP3_MASTER_CLAIM') {
@@ -959,7 +952,7 @@ module.exports = async(srv) => {
 							claimReference = result3[l].CLAIM_REFERENCE;
 						}
 						result4 = await tx.run(
-							`SELECT "PAY_COMPONENT", "REF_REPLICATION_DATE_TYPE" FROM "BENEFIT_BENEFIT_CLAIM_ADMIN" WHERE "CLAIM_CODE"='${result3[l].CLAIM_CODE}' AND "PAYMENT_MODE"='SF Replication'`
+							`SELECT "PAY_COMPONENT", "REF_REPLICATION_DATE_TYPE" FROM "BENEFIT_BENEFIT_CLAIM_ADMIN" WHERE ("CLAIM_CODE"='${result3[l].CLAIM_CODE}' AND "START_DATE"<='${dateFormat(new Date())}' AND "END_DATE">='${dateFormat(new Date())}') AND "PAYMENT_MODE"='SF Replication'`
 						);
 						if (result4.length === 0) {
 							logs.push({
@@ -1068,7 +1061,6 @@ module.exports = async(srv) => {
 								});
 							}
 						}
-						// }
 					}
 				}
 			}
@@ -1463,12 +1455,8 @@ module.exports = async(srv) => {
 				result1 = await getReplicationClaims(req, 'SAP', tableWithoutLineItem[i], dateRange, false);
 				if (result1.length > 0) {
 					for (let j = 0; j < result1.length; j++) {
-						// let repLogData = await tx.run(
-						// 	`SELECT "REP_STATUS" FROM "SF_REPLICATION_LOGS" WHERE "INTERNAL_CLAIM_REFERENCE"='${result1[j].CLAIM_REFERENCE}' AND "REP_STATUS"='Success'`
-						// );
-						// if (repLogData.length === 0) {
 						result2 = await tx.run(
-							`SELECT "PAY_COMPONENT", "REF_REPLICATION_DATE_TYPE" FROM "BENEFIT_BENEFIT_CLAIM_ADMIN" WHERE "CLAIM_CODE"='${result1[j].CLAIM_CODE}' AND "PAYMENT_MODE"='SAP Replication'`
+							`SELECT "PAY_COMPONENT", "REF_REPLICATION_DATE_TYPE" FROM "BENEFIT_BENEFIT_CLAIM_ADMIN" WHERE ("CLAIM_CODE"='${result1[j].CLAIM_CODE}' AND "START_DATE"<='${dateFormat(new Date())}' AND "END_DATE">='${dateFormat(new Date())}') AND "PAYMENT_MODE"='SAP Replication'`
 						);
 						if (result2.length === 0) {
 							logs.push({
@@ -1564,8 +1552,7 @@ module.exports = async(srv) => {
 									Unit: (tableWithoutLineItem[i] === 'BENEFIT_OVERTIME_CLAIM') ? result1[j].WORK_HOURS_ACTUAL : result1[j].CLAIM_UNIT
 								});
 							}
-						}	
-						// }
+						}
 					}
 				}
 			}
@@ -1573,12 +1560,8 @@ module.exports = async(srv) => {
 				result3 = await getReplicationClaims(req, 'SAP', tableWithLineItem[k], dateRange, true);
 				if (result3.length > 0) {
 					for (let l = 0; l < result3.length; l++) {
-						// let repLogData = await tx.run(
-						// 	`SELECT "REP_STATUS" FROM "SF_REPLICATION_LOGS" WHERE "INTERNAL_CLAIM_REFERENCE"='${result3[l].CLAIM_REFERENCE}' AND "REP_STATUS"='Success'`
-						// );
-						// if (repLogData.length === 0) {
 						result4 = await tx.run(
-							`SELECT "PAY_COMPONENT", "REF_REPLICATION_DATE_TYPE" FROM "BENEFIT_BENEFIT_CLAIM_ADMIN" WHERE "CLAIM_CODE"='${result3[l].CLAIM_CODE}' AND "PAYMENT_MODE"='SAP Replication'`
+							`SELECT "PAY_COMPONENT", "REF_REPLICATION_DATE_TYPE" FROM "BENEFIT_BENEFIT_CLAIM_ADMIN" WHERE ("CLAIM_CODE"='${result3[l].CLAIM_CODE}' AND "START_DATE"<='${dateFormat(new Date())}' AND "END_DATE">='${dateFormat(new Date())}') AND "PAYMENT_MODE"='SAP Replication'`
 						);
 						if (result4.length === 0) {
 							logs.push({
@@ -1674,8 +1657,7 @@ module.exports = async(srv) => {
 									Unit: result3[l].CLAIM_UNIT
 								});
 							}
-						}	
-						// }
+						}
 					}
 				}
 			}
@@ -2040,6 +2022,10 @@ module.exports = async(srv) => {
 	
 	function generateRandomID() {
 		return Math.floor(Math.random() * 9000000000) + 1000000000;
+	}
+	
+	function generateRandomNumBetween(min, max) {  
+	  return Math.floor(Math.random() * (max - min) + min);
 	}
 	
 	function dateFormatForClaimReference(oDate) {

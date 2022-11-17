@@ -300,7 +300,9 @@ service ClaimService @(path:'/claim')@(impl:'./benefit-service.js')
             }
         ])  as projection on sf.claimPostingCutoff;
 	entity DELEGATOR as projection on db.DELEGATOR;
-	entity ESTIMATION_PAYMENT as projection on db.ESTIMATION_PAYMENT
+	entity DELEGATOR_SELF as select from db.DELEGATOR_SELF;
+	entity DELEGATOR_CREATED as select from db.DELEGATOR_CREATED;
+	entity ESTIMATION_PAYMENT as projection on db.ESTIMATION_PAYMENT;
 	entity CLAIM_COORDINATOR as projection on db.CLAIM_COORDINATOR;
 	entity OVERSEAS_BANK as projection on sf.OVERSEAS_BANK;
 	entity SCHOLAR_SCHEME as projection on sf.SCHOLAR_SCHEME;
@@ -310,8 +312,10 @@ service ClaimService @(path:'/claim')@(impl:'./benefit-service.js')
 	entity GL_MAPPING as projection on db.GL_MAPPING;
 	entity VENDOR as projection on db.VENDOR;
 	entity GL_details as projection on db.GL_details;
+	entity PostingEstDate as projection on sf.PostingEstDate;
 	
-	function userValidation(USERID:String) returns String;
+	function userValidationTest(USERID:String) returns String;
+	function userValidation() returns String;
 	function EmployeeDetailsFetch(USERID:String) returns String;
 	function DropDowns() returns String;
 	
@@ -465,7 +469,7 @@ type CoPayment : {
 		claimCategory: String(50);	
 	};
 	action validateMultipleDuplicateWRCClaim(claims: array of wrcClaimLineItems) returns { message: String };
-	action validateClaimSubmission(employeeId: String(100), claimCode: String(50), claimReference: String(50), claimDate: Date, receiptDate: Date, receiptNumber: String(50), invoiceDate: Date, invoiceNumber: String(50),isHr :String(1),isMode: String(1), isApprover: String(1)) returns { message: String };
+	action validateClaimSubmission(employeeId: String(100), claimCode: String(50), claimReference: String(50), masterClaimReference: String(50), claimDate: Date, receiptDate: Date, receiptNumber: String(50), invoiceDate: Date, invoiceNumber: String(50),isHr :String(1),isMode: String(1), isApprover: String(1)) returns { message: String };
 	type claimSubmissionLineItems: {
 		employeeId: String(100);
 		claimCode: String(50);
@@ -500,11 +504,14 @@ type CoPayment : {
 	// @readonly entity cancelAfterApproveView as select from db.cancelAfterApproveView;
 	@readonly entity app_histwithCancel as select from db.app_histwithCancel;
 	@readonly entity app_histwithlineItem (EMP_LINEITEM:String(20)) as select from db.app_histwithlineItem(EMP_LINEITEM: :EMP_LINEITEM);
+	@readonly entity app_histWithCancel_SessionUser as select from db.app_histWithCancel_SessionUser;
+	@readonly entity app_histwithlineItem_admin (EMP_LINEITEM:String(20)) as select from db.app_histwithlineItem_admin(EMP_LINEITEM: :EMP_LINEITEM);
 	@readonly entity app_histwithlineItem_ClaimSearch (EMP_LINEITEM:String(20)) as select from db.app_histwithlineItem_ClaimSearch(EMP_LINEITEM: :EMP_LINEITEM);
 	@readonly function validateClaimCancellation(CLAIM_REFERENCE: String(100), LINEITEM_CLAIM_REFERENCE: String(100)) returns { message: String(50) };
 	@readonly entity app_delegation(delegator_id:String(20)) as select from db.app_delegation(delegator_id: :delegator_id);
 	@readonly entity claimstatus_ext as select from db.claimstatus_ext;
 	@readonly entity SMS_PAYMENT_REPORT as select from db.SMS_PAYMENT_REPORT;
+	@readonly entity BANK_ACC_VIEW  as select from sf.BANK_ACC_VIEW;
 	function ApprovalHistory(USERID:String,fromDate:Date,toDate:Date,CORDIN:String,Personnel_Area:String,Personal_Subarea:String,Pay_Grade:String,Division:String,HR_ADMIN:String,CLAIM_STATUS:String,CLAIM_TYPE:String,CATEGORY_CODE:String) returns array of {
 	// function ApprovalHistory(EMPLOYEE_ID:String,CLAIM_OWNER_ID:String,CLAIM_STATUS:String) returns array of {
 		 CLAIM_REF_NUMBER: String(100);

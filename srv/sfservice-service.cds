@@ -66,6 +66,8 @@ service sfservice @(path:'/sfservice')@(impl:'./sfservice-service.js')
 	entity SMS_Import_Posting_Upload_Logs as projection on sf.SMS_Import_Posting_Upload_Logs;
 	entity PER_NATIONALID as projection on sf.PER_NATIONALID;
 	entity Master_Employee_Type as projection on sf.Master_Employee_Type;
+	entity SCH_STATUS as projection on sf.SCH_STATUS;
+	entity SCH_CLUSTER as projection on sf.SCH_CLUSTER;
 	// function exportChargeOutExcelReport(Cluster: String, Scholarship_Scheme: String, Year_Of_Award: String(4), Scholar_Status: String, From_Date: Date, To_Date: Date) returns String;
 	
 	function SFEMPJobCPIDelete(userid:String) returns String;

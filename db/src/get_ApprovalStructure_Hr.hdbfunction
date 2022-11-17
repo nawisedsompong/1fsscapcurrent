@@ -8,10 +8,16 @@ FUNCTION "get_ApprovalStructure_Hr" (
 	BEGIN
 	
 	DECLARE IDX INT;
-	DECLARE MAXIDY INT;
 	DECLARE MAXIDX INT;
+	DECLARE MAXIDY INT;
+	DECLARE lv_counter INT;
 	DECLARE lv_index INT;
 	DECLARE LT_APP_STRU_TABLE "tt_ApprStru_table_type";
+	DECLARE lv_tableindex INT;
+	DECLARE LT_CHECK_SEQUENCE TABLE (
+		INDEXV INT,
+		ALL_COUNT INT
+	);
 	
 	
 	
@@ -168,11 +174,45 @@ FUNCTION "get_ApprovalStructure_Hr" (
 	-- 													ORDER BY "SEQUENCE_OF_CHECK";
 			
 				MAXIDY = RECORD_COUNT(:LT_APP_STRU_temp);
+				lv_tableindex= 1;
 					IF MAXIDY > 1 THEN
-						LT_APP_STRU_temp = SELECT * FROM :LT_APP_STRU_temp where "PAY_GRADE" <> 'ALL' OR "SPONSOR_INSTITUTION" <> 'ALL' OR "EMPLOYEE_DEPARTMENT" <> 'ALL' OR "EMPLOYEE_DIVISION" <>'ALL'
-										OR "PERSONNEL_AREA" <> 'ALL' OR  "PERSONAL_SUBAREA" <> 'ALL' OR "SPECIALISATION" <> 'ALL';
-					END IF;
-				
+						-- LT_APP_STRU_temp = SELECT * FROM :LT_APP_STRU_temp where "PAY_GRADE" <> 'ALL' OR "SPONSOR_INSTITUTION" <> 'ALL' OR "EMPLOYEE_DEPARTMENT" <> 'ALL' OR "EMPLOYEE_DIVISION" <>'ALL'
+						-- 				OR "PERSONNEL_AREA" <> 'ALL' OR  "PERSONAL_SUBAREA" <> 'ALL' OR "SPECIALISATION" <> 'ALL';
+						-- LT_CHECK_SEQUENCE
+						lv_counter =  0;
+						 FOR IDX IN 1..MAXIDY DO	
+				    			-- DECLARE V1 DECIMAL(10, 2) = :IT.V[IDX] * :IT.PCT[IDX] / 100;
+				    			-- DECLARE V2 DECIMAL(10, 2) = :IT.V[IDX] - V1;
+				    			-- :OT1.INSERT((:IT.K[IDX], V1));
+				    			-- :OT2.INSERT((:IT.K[IDX], V2));
+							    		IF :LT_APP_STRU_temp.PAY_GRADE[IDX]='ALL' then
+							    			lv_counter = :lv_counter + 1;
+							    		END IF;
+							    		IF :LT_APP_STRU_temp.SPONSOR_INSTITUTION[IDX]='ALL' then
+							    			lv_counter = :lv_counter + 1;
+							    		END IF;
+							    		IF :LT_APP_STRU_temp.EMPLOYEE_DEPARTMENT[IDX]='ALL' then
+							    			lv_counter = :lv_counter + 1;
+							    		END IF;
+							    		IF :LT_APP_STRU_temp.EMPLOYEE_DIVISION[IDX]='ALL' then
+							    			lv_counter = :lv_counter + 1;
+							    		END IF;
+							    		IF :LT_APP_STRU_temp.PERSONNEL_AREA[IDX]='ALL' then
+							    			lv_counter = :lv_counter + 1;
+							    		END IF;
+							    		IF :LT_APP_STRU_temp.PERSONAL_SUBAREA[IDX]='ALL' then
+							    			lv_counter = :lv_counter + 1;
+							    		END IF;
+							    		IF :LT_APP_STRU_temp.SPECIALISATION[IDX]='ALL' then
+							    			lv_counter = :lv_counter + 1;
+							    		END IF;
+							 
+							:LT_CHECK_SEQUENCE.INSERT((:IDX, :lv_counter));
+							    				
+							END FOR;
+								 LT_TEMP_SEQ = SELECT TOP 1 * FROM :LT_CHECK_SEQUENCE ORDER BY "ALL_COUNT" ASC ;
+								 lv_tableindex = :LT_TEMP_SEQ.INDEXV[1];
+						 END IF;
 										
 				:LT_APP_STRU_TABLE.INSERT((:LT_APP_STRU_temp.CLAIM_CODE[1], :LT_APP_STRU_temp.DESCRIPTION[1], :LT_APP_STRU_temp.SEQUENCE_OF_CHECK[1],:LT_APP_STRU_temp.CLAIM_REFERENCE[1],:LT_APP_STRU_temp.EMPLOYEE_ID[1]));								
 		 END FOR;

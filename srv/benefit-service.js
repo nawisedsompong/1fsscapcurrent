@@ -114,7 +114,8 @@ module.exports = async(srv) => {
 		v_FOLocation,
 		PerEmail,
 		PerPersonRelationship,
-		claimPostingCutoff
+		claimPostingCutoff,
+		PostingEstDate
 	} = srv.entities('sf');
 
 	const {
@@ -144,6 +145,72 @@ module.exports = async(srv) => {
 		let tx = cds.transaction(req),
 			filterObject, userid = "";
 		console.log(req.user.id);
+		// if (req.data.USERID == "") {
+		filterObject = {
+				"EMAILADDRESS": req.user.id
+			}
+			// filterObject = {
+			// 	"EMAILADDRESS": '47001985@mohh.com'
+			// }
+		var oEmployeeMail = await tx.run(
+			SELECT.from(PerEmail).where(filterObject));
+
+		if (oEmployeeMail.length <= 0) {
+			req.reject(400, "Employee data not found");
+		} else {
+			userid = oEmployeeMail[0].personIdExternal;
+		}
+
+		// } else {
+		// 	userid = req.data.USERID;
+		// }
+
+		//Check Whether Employee is Active
+		var oEmpEmployment = await tx.run(
+			SELECT.from(EmpEmployment).where({
+				personIdExternal: userid,
+				startDate: {
+					// '<=': new Date().toISOString().replace("T", " ").substring(0, 19)
+					'<=': new Date().toISOString().split('T')[0] + ' 00:00:00'
+				},
+				and: {
+					endDate: {
+						// '>=': new Date().toISOString().replace("T", " ").substring(0, 19)
+						'>=': new Date().toISOString().split('T')[0] + ' 00:00:00'
+					},
+					or: {
+						endDate: null
+					}
+				}
+			}));
+
+		if (oEmpEmployment.length <= 0) {
+			req.reject(400, "Employee is not Active anymore");
+		}
+
+		var vCalculation =
+			`SELECT * FROM "CALCULATION_EMP_MASTER_DETAILS"
+	(placeholder."$$USER_ID$$"=>'${userid}')`
+		var oEmployeeData = await tx.run(vCalculation);
+
+		if (oEmployeeData.length == 0) {
+			req.reject(400, "Employee is not Available ");
+		}
+
+		var dataList = oEmployeeData[0];
+		var dAdminData =
+			`SELECT * FROM "BENEFIT_ADMIN_ROLE" WHERE EMPLOYEE_ID='${userid}' 
+			AND START_DATE <= CURRENT_DATE AND END_DATE >= CURRENT_DATE`;
+
+		dataList.adminList = await tx.run(dAdminData);
+
+		return JSON.stringify(dataList);
+	});
+
+	srv.on('userValidationTest', async(req) => {
+		let tx = cds.transaction(req),
+			filterObject, userid = "";
+		console.log(req.user.id);
 		if (req.data.USERID == "") {
 			filterObject = {
 					"EMAILADDRESS": req.user.id
@@ -170,12 +237,12 @@ module.exports = async(srv) => {
 				personIdExternal: userid,
 				startDate: {
 					// '<=': new Date().toISOString().replace("T", " ").substring(0, 19)
-					'<=': new Date().toISOString().split('T')[0]+' 00:00:00'
+					'<=': new Date().toISOString().split('T')[0] + ' 00:00:00'
 				},
 				and: {
 					endDate: {
 						// '>=': new Date().toISOString().replace("T", " ").substring(0, 19)
-						'>=': new Date().toISOString().split('T')[0]+' 00:00:00'
+						'>=': new Date().toISOString().split('T')[0] + ' 00:00:00'
 					},
 					or: {
 						endDate: null
@@ -191,21 +258,20 @@ module.exports = async(srv) => {
 			`SELECT * FROM "CALCULATION_EMP_MASTER_DETAILS"
 	(placeholder."$$USER_ID$$"=>'${userid}')`
 		var oEmployeeData = await tx.run(vCalculation);
-		
-		if(oEmployeeData.length == 0){
+
+		if (oEmployeeData.length == 0) {
 			req.reject(400, "Employee is not Available ");
 		}
-		
-		var dataList=  oEmployeeData[0];
+
+		var dataList = oEmployeeData[0];
 		var dAdminData =
 			`SELECT * FROM "BENEFIT_ADMIN_ROLE" WHERE EMPLOYEE_ID='${userid}' 
 			AND START_DATE <= CURRENT_DATE AND END_DATE >= CURRENT_DATE`;
-			
+
 		dataList.adminList = await tx.run(dAdminData);
-		
+
 		return JSON.stringify(dataList);
 	});
-	
 	srv.on('EmployeeDetailsFetch', async(req) => {
 		let tx = cds.transaction(req),
 			filterObject, userid = "";
@@ -276,7 +342,7 @@ module.exports = async(srv) => {
 		var ddmmyyyy = year + "-" + pad(month + 1) + "-" + pad(date);
 		return ddmmyyyy;
 	}
-	
+
 	function dateTimeFormat(dateValue) {
 		var sDate = new Date(dateValue).toISOString();
 		var splittedDate = sDate.split("T");
@@ -1361,14 +1427,19 @@ module.exports = async(srv) => {
 				entries: ["START_DATE", "END_DATE", "CURRENCY"],
 				allowDelete: "X"
 			},
-			ADMIN_TILE_LIST:{
+			ADMIN_TILE_LIST: {
 				db: ADMIN_TILE_LIST,
 				entries: ["TILE_CODE"],
 				allowDelete: "X"
 			},
-			VEHICLE_RATE:{
+			VEHICLE_RATE: {
 				db: VEHICLE_RATE,
-				entries: ["START_DATE","END_DATE","TRANSPORT_TYPE"],
+				entries: ["START_DATE", "END_DATE", "TRANSPORT_TYPE"],
+				allowDelete: "X"
+			},
+			PostingEstDate: {
+				db: PostingEstDate,
+				entries: ["Rep_Type", "Rep_Start_Date", "Rep_End_Date"],
 				allowDelete: "X"
 			}
 		}
@@ -2481,8 +2552,8 @@ module.exports = async(srv) => {
 				// return false
 		}
 	});
-	
-	srv.on('validateClaimCancellation', async (req) => {
+
+	srv.on('validateClaimCancellation', async(req) => {
 		const tx = cds.transaction(req);
 		let claimReference = req.data.CLAIM_REFERENCE;
 		let lineItemClaimReference = req.data.LINEITEM_CLAIM_REFERENCE;
@@ -2495,15 +2566,19 @@ module.exports = async(srv) => {
 		async function checkPostingDateValidation(req, tx, masterClaimReference, lineItemClaimReference) {
 			let claimReference = (lineItemClaimReference !== '') ? lineItemClaimReference : masterClaimReference;
 			let currentTimestamp = dateTimeFormat(new Date());
-			let replicationLogResult = await tx.run(`
+			let replicationLogResult = await tx.run(
+				`
 				SELECT "REP_TIMESTAMP" FROM "SF_REPLICATION_LOGS" WHERE "INTERNAL_CLAIM_REFERENCE"='${claimReference}' AND "REP_STATUS"='Success'
-			`);
+			`
+			);
 			if (replicationLogResult.length > 0) {
-				let postingEstDateResult = await tx.run(`
+				let postingEstDateResult = await tx.run(
+					`
 					SELECT * FROM "SF_POSTINGESTDATE" WHERE "REP_START_DATE" <= '${replicationLogResult[0].REP_TIMESTAMP}' AND 
 					"REP_END_DATE" >= '${replicationLogResult[0].REP_TIMESTAMP}' AND 
 					"REP_START_DATE" <= '${currentTimestamp}' AND "REP_END_DATE" >= '${currentTimestamp}'
-				`);
+				`
+				);
 				if (postingEstDateResult.length === 0) {
 					return req.reject({
 						code: '422',
@@ -2512,27 +2587,34 @@ module.exports = async(srv) => {
 				}
 			}
 		}
-		let originalClaimReferenceStatusResult1 = await tx.run(`
+		let originalClaimReferenceStatusResult1 = await tx.run(
+			`
 			SELECT * FROM "BENEFIT_CLAIM_STATUS" WHERE "CLAIM_REFERENCE"='${claimReference}' AND ("STATUS"='Cancelled' OR "STATUS"='Cancellation Approved' OR "STATUS"='Rejected')
-		`);
+		`
+		);
 		if (originalClaimReferenceStatusResult1.length > 0) {
 			return req.reject({
 				code: '422',
 				message: 'Claim status has changed. Please referesh the page.'
 			});
 		}
-		let originalClaimReferenceStatusResult2 = await tx.run(`
+		let originalClaimReferenceStatusResult2 = await tx.run(
+			`
 			SELECT * FROM "BENEFIT_CLAIM_STATUS" WHERE "CLAIM_REFERENCE"='${claimReference}' AND "STATUS"='Approved'
 		`);
 		if (originalClaimReferenceStatusResult2.length > 0) {
-			let cancelMasterResult = await tx.run(`
+			let cancelMasterResult = await tx.run(
+				`
 				SELECT * FROM "BENEFIT_CLAIM_CANCEL_MASTER" WHERE "PARENT_CLAIM_REFERENCE"='${originalClaimReferenceStatusResult2[0].CLAIM_REFERENCE}'
-			`);
+			`
+			);
 			if (cancelMasterResult.length > 0) {
-				let cancelRefStatusResult = await tx.run(`
+				let cancelRefStatusResult = await tx.run(
+					`
 					SELECT * FROM "BENEFIT_CLAIM_STATUS" WHERE "CLAIM_REFERENCE"='${cancelMasterResult[0].CLAIM_REFERENCE}' AND
 					("STATUS" LIKE 'Cancellation Pending%' OR "STATUS"='Cancellation Approved')
-				`);
+				`
+				);
 				if (cancelRefStatusResult.length > 0) {
 					if (cancelRefStatusResult[0].STATUS === 'Cancellation Approved') {
 						return req.reject({
@@ -2945,7 +3027,7 @@ module.exports = async(srv) => {
 		                    WHERE  "CLAIM_CODE" = '${data.Claim_Code}_Day'  AND
 		                            "EFFECTIVE_DATE" >= '1900-01-01' AND
 		                            "END_DATE" <= '9999-12-31'`;
-	
+
 				let eligibilityData = await tx.run(eligibilitySQL);
 				if (eligibilityData.length > 0) {
 					let prorationPayload = {
@@ -3169,7 +3251,7 @@ module.exports = async(srv) => {
                 ((STARTDATE  <= '${data.receptDate}' AND ENDDATE  >= '${data.receptDate}') OR 
                 (STARTDATE  <= '${receiptDate2}' AND ENDDATE  >= '${receiptDate2}')) AND
                 APPROVALSTATUS  = 'APPROVED' AND 
-                TIMETYPE IN ('1022', '1021', '1021D', '1031', '1031D', 'PIL', 'PILH', '1173', '1174', '1175', '1176')`;
+                TIMETYPE IN ('1021', '1021D', '1031', '1031D')`;
 
 			const leavesData = await tx.run(leaveSQL);
 
@@ -3295,7 +3377,8 @@ module.exports = async(srv) => {
 		}
 
 		// Rounding to three decimal places
-		data.Claim_Amount = parseFloat(((parseFloat(data.Consultation_Fee) * 100000) + (parseFloat(data.Other_Cost) * 100000) + (parseFloat(data.Hospitalization_Fees) *
+		data.Claim_Amount = parseFloat(((parseFloat(data.Consultation_Fee) * 100000) + (parseFloat(data.Other_Cost) * 100000) + (parseFloat(
+				data.Hospitalization_Fees) *
 			100000)) / 100000).toFixed(3);
 
 		if (parseFloat(coPayment[0].CAP_AMOUNT_TOTAL) > 0) {
@@ -3422,8 +3505,8 @@ module.exports = async(srv) => {
 		return data;
 
 	});
-	
-	srv.on('getMultipleWrcClaimAmount', async (req) => {
+
+	srv.on('getMultipleWrcClaimAmount', async(req) => {
 		let result = await getWRCAmount(req, true);
 		return result;
 	});
@@ -3432,11 +3515,12 @@ module.exports = async(srv) => {
 		let result = await getWRCAmount(req);
 		return result;
 	});
-	
+
 	async function getWRCAmount(req, hasMultiple) {
 		const tx = cds.transaction(req);
 		let lineitems = (hasMultiple) ? req.data.lineItems : [req.data];
-		let errorMessage = [], responseArr = [];
+		let errorMessage = [],
+			responseArr = [];
 		for (let i = 0; i < lineitems.length; i++) {
 			if (!lineitems[i].employeeId || !lineitems[i].claimCode || !lineitems[i].claimDate) {
 				if (!hasMultiple) {
@@ -3451,7 +3535,7 @@ module.exports = async(srv) => {
 			}
 			const claimUnit = (lineitems[i].claimUnit && parseInt(lineitems[i].claimUnit) > 0) ? parseInt(lineitems[i].claimUnit) : 1;
 			let dayTypeCode, payGrade, result1, normalPHs, majorPHs, result3;
-	
+
 			result1 = await tx.run(
 				`SELECT TOP 1 *
 				 FROM "SF_EMPJOB" 
@@ -3459,7 +3543,7 @@ module.exports = async(srv) => {
 				 "STARTDATE"<='${dateFormat(lineitems[i].claimDate)}' AND 
 				 "ENDDATE">='${dateFormat(lineitems[i].claimDate)}' ORDER BY "STARTDATE" DESC`
 			);
-	
+
 			if (result1.length > 0) {
 				payGrade = result1[0].PAYGRADE;
 				if (!payGrade) {
@@ -3507,42 +3591,43 @@ module.exports = async(srv) => {
 						continue;
 					}
 				}
-				let valid = false, finalResult;
+				let valid = false,
+					finalResult;
 				for (let i = 0; i < result3.length; i++) {
-					switch(result3[i].DAY_TYPE_CODE) {
-						case '1': // All days
+					switch (result3[i].DAY_TYPE_CODE) {
+					case '1': // All days
+						valid = true;
+						break;
+					case '2': // Mon to Fri
+						if (claimDay !== 0 && claimDay !== 6) {
 							valid = true;
-							break;
-						case '2': // Mon to Fri
-							if (claimDay !== 0 && claimDay !== 6) {
-								valid = true;
-							}
-							break;
-						case '3': // Weekend and PH
-							if ((claimDay === 0 || claimDay === 6) || normalPHs.length > 0) {
-								valid = true;
-							}
-							break;
-						case '4': // Holiday Only
-							if (normalPHs.length > 0) {
-								valid = true;
-							}
-							break;
-						case '5': // Mon to Thurs
-							if (claimDay > 0 && claimDay < 5) {
-								valid = true;
-							}
-							break;
-						case '6': // Weekend, eve of Major PH or PH
-							if ((claimDay === 0 || claimDay === 6) || (majorPHs.length > 0 || normalPHs.length > 0)) {
-								valid = true;
-							}
-							break;
-						case '7': // Weekend Only
-							if (claimDay === 0 || claimDay === 6) {
-								valid = true;
-							}
-							break;
+						}
+						break;
+					case '3': // Weekend and PH
+						if ((claimDay === 0 || claimDay === 6) || normalPHs.length > 0) {
+							valid = true;
+						}
+						break;
+					case '4': // Holiday Only
+						if (normalPHs.length > 0) {
+							valid = true;
+						}
+						break;
+					case '5': // Mon to Thurs
+						if (claimDay > 0 && claimDay < 5) {
+							valid = true;
+						}
+						break;
+					case '6': // Weekend, eve of Major PH or PH
+						if ((claimDay === 0 || claimDay === 6) || (majorPHs.length > 0 || normalPHs.length > 0)) {
+							valid = true;
+						}
+						break;
+					case '7': // Weekend Only
+						if (claimDay === 0 || claimDay === 6) {
+							valid = true;
+						}
+						break;
 					}
 					if (valid) {
 						finalResult = result3[i];
@@ -3675,7 +3760,7 @@ module.exports = async(srv) => {
 
 	srv.on('getLocationROs', async(req) => {
 		let requestData = req.data,
-			result1, result2;
+			result1, result2, result3;
 		if (!requestData.employeeId || !requestData.submissionDate) {
 			return req.reject({
 				code: '400',
@@ -3728,9 +3813,10 @@ module.exports = async(srv) => {
 			      AND ("EMPEMPLOY"."ENDDATE" >= '${currentDate}'
 				  OR "EMPEMPLOY"."ENDDATE" IS NULL);`
 		);
-		if (result2.length === 0) {
-			result2 = await tx.run(
-				`SELECT
+		// if (result2.length === 0) {
+		// result2 = await tx.run(// new change Sahas as per client
+		result3 = await tx.run(
+			`SELECT
 					"LOC_RO"."DEPARTMENT", 
 					"LOC_RO"."DIVISION", 
 					"LOC_RO"."LOCATION_RO_EMPLOYEEID",
@@ -3747,19 +3833,28 @@ module.exports = async(srv) => {
 					  AND "EMPEMPLOY"."STARTDATE" <= '${currentDate}'
 				      AND ("EMPEMPLOY"."ENDDATE" >= '${currentDate}'
 					  OR "EMPEMPLOY"."ENDDATE" IS NULL);`
-			);
-			if (result2.length === 0) {
-				return req.reject({
-					code: '404',
-					message: `Location RO not found.`
-				});
-			}
+		);
+
+		var final_result = result2.concat(result3);
+
+		// if (result2.length === 0) {
+		if (final_result.length === 0) {
+			return req.reject({
+				code: '404',
+				message: `Location RO not found.`
+			});
 		}
-		return result2;
+
+		// }// new change Sahas as per client
+		// return result2;
+		return final_result;
 	});
 
 	srv.on('validateDuplicateWRCClaim', async(req) => {
-		let requestData = req.data, validResults = [], errorClaimCodes = [], errorMessageSubStr = '';
+		let requestData = req.data,
+			validResults = [],
+			errorClaimCodes = [],
+			errorMessageSubStr = '';
 		if (!requestData.employeeId || !requestData.claimCode || !requestData.claimDate || !requestData.claimCategory) {
 			return req.reject({
 				code: '400',
@@ -3776,7 +3871,7 @@ module.exports = async(srv) => {
 		validResults = validationResult.validResults;
 		errorClaimCodes = validationResult.errorClaimCodes;
 		errorMessageSubStr = validationResult.errorMessageSubStr;
-		
+
 		let hasInvalid = validResults.find((item) => {
 			return item === 'invalid';
 		});
@@ -3802,7 +3897,9 @@ module.exports = async(srv) => {
 
 	srv.on('validateMultipleDuplicateWRCClaim', async(req) => {
 		let requestData = req.data;
-		let validResults = [], errorClaimCodes = [], errorMessageSubStr = '';
+		let validResults = [],
+			errorClaimCodes = [],
+			errorMessageSubStr = '';
 		const tx = cds.transaction(req);
 		if (!requestData.claims) {
 			return req.reject({
@@ -3837,10 +3934,11 @@ module.exports = async(srv) => {
 			};
 		}
 	});
-	
-	async function validateDuplicateWRCClaims (req, isMultiple) {
+
+	async function validateDuplicateWRCClaims(req, isMultiple) {
 		const tx = cds.transaction(req);
-		let requestData, holidayResult = [], lowerDateThreshold, upperDateThreshold, claimDate, errorMessageSubStr = '';
+		let requestData, holidayResult = [],
+			lowerDateThreshold, upperDateThreshold, claimDate, errorMessageSubStr = '';
 		const validResults = [];
 		if (isMultiple) {
 			requestData = req.data;
@@ -3850,7 +3948,8 @@ module.exports = async(srv) => {
 			}
 		}
 		for (let j = 0; j < requestData.claims.length; j++) {
-			if (!requestData.claims[j].employeeId || !requestData.claims[j].claimCode || !requestData.claims[j].claimDate || !requestData.claims[j].claimCategory) {
+			if (!requestData.claims[j].employeeId || !requestData.claims[j].claimCode || !requestData.claims[j].claimDate || !requestData.claims[j]
+				.claimCategory) {
 				return req.reject({
 					code: '400',
 					message: `Missing value in one of the attribute: "employeeId", "claimCode", claimDate", "claimCategory".`
@@ -3862,7 +3961,11 @@ module.exports = async(srv) => {
 					message: `Invalid claim category. Only "WRC" and "WRC_HR" values are allowed.`
 				});
 			}
-			let claimCodesDB = [], claimCodesPayload = [], combinedClaimCodes = [], claimCodesUniqueSet1 = [], claimCodesUniqueSet2 = [];
+			let claimCodesDB = [],
+				claimCodesPayload = [],
+				combinedClaimCodes = [],
+				claimCodesUniqueSet1 = [],
+				claimCodesUniqueSet2 = [];
 			claimDate = dateFormat(new Date(requestData.claims[j].claimDate));
 			lowerDateThreshold = dateFormat(new Date(new Date(requestData.claims[j].claimDate).getFullYear() + '/01/01'));
 			upperDateThreshold = dateFormat(new Date(new Date(requestData.claims[j].claimDate).getFullYear() + '/12/31'));
@@ -3900,7 +4003,7 @@ module.exports = async(srv) => {
 			combinedClaimCodes = claimCodesDB.concat(claimCodesPayload);
 			combinedClaimCodes.filter((claimCode) => {
 				let i = claimCodesUniqueSet1.findIndex(value => (value === claimCode));
-				if(i <= -1) {
+				if (i <= -1) {
 					claimCodesUniqueSet1.push(claimCode);
 					claimCodesUniqueSet2.push(claimCode);
 				}
@@ -3951,7 +4054,7 @@ module.exports = async(srv) => {
 					};
 				}
 			}
-			
+
 			// Validation 3: WRCPHNONWD special condition
 			if (requestData.claims[j].claimCode === 'WRCPHNONWD') {
 				holidayResult = await tx.run(
@@ -3976,8 +4079,8 @@ module.exports = async(srv) => {
 			errorClaimCodes: [],
 		};
 	}
-	
-	srv.on('validateMultipleClaimSubmission', async (req) => {
+
+	srv.on('validateMultipleClaimSubmission', async(req) => {
 		let requestData = req.data;
 		let reqMessage = 'Successfully Validated.';
 		let errorResults = [];
@@ -4077,8 +4180,9 @@ module.exports = async(srv) => {
 			claimDateStr = (requestData.receiptDate) ? dateFormat(requestData.receiptDate) : dateFormat(requestData.claimDate);
 		}
 		const tx = cds.transaction(req);
-		
-		let empJobResult = await tx.run(`
+
+		let empJobResult = await tx.run(
+			`
 			SELECT
 				"COMPANY"
 			FROM "SF_EMPJOB"
@@ -4086,8 +4190,9 @@ module.exports = async(srv) => {
 				  "STARTDATE" <= '${claimDateStr}' AND
 				  "ENDDATE" >= '${claimDateStr}'
 			ORDER BY "STARTDATE" DESC
-		`);
-		
+		`
+		);
+
 		if (empJobResult.length === 0 || (empJobResult.length > 0 && !empJobResult[0].COMPANY)) {
 			return {
 				valid: false,
@@ -4134,13 +4239,13 @@ module.exports = async(srv) => {
 				message: `Successfully Validated.`
 			};
 		}
-		let startDate = new Date(),
+		let startDate = new Date(dateFormat(new Date())),
 			claimDate = new Date(requestData.claimDate),
 			receiptDate = (requestData.receiptDate) ? new Date(requestData.receiptDate) : null,
 			invoiceDate = (requestData.invoiceDate) ? new Date(requestData.invoiceDate) : null,
-			submissionDate = new Date();
+			submissionDate = new Date(dateFormat(new Date()));
 		if (requestData.isApprover === 'X') {
-			let claimRefer = (hasMultiple) ? requestData.masterClaimReference : requestData.claimReference;
+			let claimRefer = (requestData.masterClaimReference) ? requestData.masterClaimReference : requestData.claimReference;
 			let submissionDateResult = await tx.run(
 				`SELECT 
 					"SUBMIT_DATE"
@@ -4186,7 +4291,7 @@ module.exports = async(srv) => {
 		}
 		var employmentStartDate = new Date(employmentDetails.STARTDATE),
 			employmentEndDate = new Date(employmentDetails.ENDDATE);
-			
+
 		if (requestData.invoiceDate) {
 			if (invoiceDate < employmentStartDate || invoiceDate > employmentEndDate) {
 				return {
@@ -4268,45 +4373,47 @@ module.exports = async(srv) => {
 			result1, result2;
 		if (hasMultiple && invoiceNumber) {
 			let invoiceNumbers = req.data.claims.filter((item) => {
-		        return item.invoiceNumber.toString().toUpperCase() === invoiceNumber.toString().toUpperCase() && item.invoiceDate === invoiceDate && item.employeeId === employeeId;
-		    });
-		    if (invoiceNumbers.length > 1) {
-		    	return {
+				return item.invoiceNumber.toString().toUpperCase() === invoiceNumber.toString().toUpperCase() && item.invoiceDate === invoiceDate &&
+					item.employeeId === employeeId;
+			});
+			if (invoiceNumbers.length > 1) {
+				return {
 					valid: false,
 					code: '422',
 					message: `Duplicate invoice number`
 				};
-		    }
+			}
 		}
 		const tx = cds.transaction(req);
 		if (invoiceNumber || receiptNumber) {
-			let tableWithoutLineItem = [], tableWithLineItem = [];
+			let tableWithoutLineItem = [],
+				tableWithLineItem = [];
 			if (receiptNumber) {
 				tableWithoutLineItem = [
-					'BENEFIT_AHP_LIC_MS_WIC_CLAIM',
-					'BENEFIT_PC_CLAIM',
-					'BENEFIT_PTF_ACL_BCL_CLAIM',
-					"BENEFIT_MEDICAL_CLAIM"
-				],
-				tableWithLineItem = [{
-					masterTable: 'BENEFIT_COV_MASTER_CLAIM',
-					lineItemTable: 'BENEFIT_COV_LINEITEM_CLAIM'
-				}, {
-					masterTable: 'BENEFIT_SP_MASTER_CLAIM',
-					lineItemTable: 'BENEFIT_SP_LINEITEM_CLAIM'
-				}, {
-					masterTable: 'BENEFIT_SP1_MASTER_CLAIM',
-					lineItemTable: 'BENEFIT_SP1_LINEITEM_CLAIM'
-				}, {
-					masterTable: 'BENEFIT_SP2_MASTER_CLAIM',
-					lineItemTable: 'BENEFIT_SP2_LINEITEM_CLAIM'
-				}, {
-					masterTable: 'BENEFIT_SP3_MASTER_CLAIM',
-					lineItemTable: 'BENEFIT_SP3_LINEITEM_CLAIM'
-				}, {
-					masterTable: 'BENEFIT_TC_MASTER_CLAIM',
-					lineItemTable: 'BENEFIT_TC_LINEITEM_CLAIM'
-				}];
+						'BENEFIT_AHP_LIC_MS_WIC_CLAIM',
+						'BENEFIT_PC_CLAIM',
+						'BENEFIT_PTF_ACL_BCL_CLAIM',
+						"BENEFIT_MEDICAL_CLAIM"
+					],
+					tableWithLineItem = [{
+						masterTable: 'BENEFIT_COV_MASTER_CLAIM',
+						lineItemTable: 'BENEFIT_COV_LINEITEM_CLAIM'
+					}, {
+						masterTable: 'BENEFIT_SP_MASTER_CLAIM',
+						lineItemTable: 'BENEFIT_SP_LINEITEM_CLAIM'
+					}, {
+						masterTable: 'BENEFIT_SP1_MASTER_CLAIM',
+						lineItemTable: 'BENEFIT_SP1_LINEITEM_CLAIM'
+					}, {
+						masterTable: 'BENEFIT_SP2_MASTER_CLAIM',
+						lineItemTable: 'BENEFIT_SP2_LINEITEM_CLAIM'
+					}, {
+						masterTable: 'BENEFIT_SP3_MASTER_CLAIM',
+						lineItemTable: 'BENEFIT_SP3_LINEITEM_CLAIM'
+					}, {
+						masterTable: 'BENEFIT_TC_MASTER_CLAIM',
+						lineItemTable: 'BENEFIT_TC_LINEITEM_CLAIM'
+					}];
 			} else if (invoiceNumber) {
 				tableWithLineItem = [{
 					masterTable: 'BENEFIT_OC_MASTER_CLAIM',
@@ -4322,13 +4429,14 @@ module.exports = async(srv) => {
 					lineItemTable: 'BENEFIT_SDFC_LINEITEM_CLAIM'
 				}];
 			}
-			
+
 			let claimReferenceSubStr = '';
 			if (claimReference) {
 				claimReferenceSubStr = `"CLAIM_REFERENCE" != '${claimReference}' AND `;
 			}
 			let msgSubStr = (receiptNumber) ? 'receipt' : 'invoice';
-			let querySubStr1 = (receiptNumber) ? `UPPER("RECEIPT_NUMBER") LIKE UPPER('${receiptNumber}')` : `UPPER("INVOICE_NUMBER") LIKE UPPER('${invoiceNumber}') AND "EMPLOYEE_ID"='${employeeId}' AND "INVOICE_DATE"='${invoiceDate}' `;
+			let querySubStr1 = (receiptNumber) ? `UPPER("RECEIPT_NUMBER") LIKE UPPER('${receiptNumber}')` :
+				`UPPER("INVOICE_NUMBER") LIKE UPPER('${invoiceNumber}') AND "EMPLOYEE_ID"='${employeeId}' AND "INVOICE_DATE"='${invoiceDate}' `;
 			for (let i = 0; i < tableWithoutLineItem.length; i++) {
 				result1 = await tx.run(
 					`SELECT 
@@ -4352,7 +4460,8 @@ module.exports = async(srv) => {
 			if (claimReference) {
 				claimReferenceLineItemSubStr = `"CLAIM_LINEITEM"."CLAIM_REFERENCE" != '${claimReference}' AND `;
 			}
-			let querySubStr2 = (receiptNumber) ? `UPPER("CLAIM_LINEITEM"."RECEIPT_NUMBER") LIKE UPPER('${receiptNumber}')` : `UPPER("CLAIM_LINEITEM"."INVOICE_NUMBER") LIKE UPPER('${invoiceNumber}') AND "CLAIM_LINEITEM"."EMPLOYEE_ID"='${employeeId}' AND "CLAIM_LINEITEM"."INVOICE_DATE"='${invoiceDate}' `;
+			let querySubStr2 = (receiptNumber) ? `UPPER("CLAIM_LINEITEM"."RECEIPT_NUMBER") LIKE UPPER('${receiptNumber}')` :
+				`UPPER("CLAIM_LINEITEM"."INVOICE_NUMBER") LIKE UPPER('${invoiceNumber}') AND "CLAIM_LINEITEM"."EMPLOYEE_ID"='${employeeId}' AND "CLAIM_LINEITEM"."INVOICE_DATE"='${invoiceDate}' `;
 			for (let j = 0; j < tableWithLineItem.length; j++) {
 				let querySubString = querySubStr2;
 				if (tableWithLineItem[j].masterTable === 'BENEFIT_PAY_UP_MASTER_CLAIM') {
@@ -5082,9 +5191,9 @@ module.exports = async(srv) => {
 		let Pay_Grade = req.data.Pay_Grade;
 		let Division = req.data.Division;
 		let Year = req.data.Year;
-		let CLAIM_STATUS= req.data.CLAIM_STATUS;
-		let CLAIM_TYPE= req.data.CLAIM_TYPE;
-		let CATEGORY_CODE= req.data.CATEGORY_CODE;
+		let CLAIM_STATUS = req.data.CLAIM_STATUS;
+		let CLAIM_TYPE = req.data.CLAIM_TYPE;
+		let CATEGORY_CODE = req.data.CATEGORY_CODE;
 
 		// var options = { hour12: false };
 		// var current = new Date().toLocaleString('en-DE', options);
@@ -5171,35 +5280,32 @@ module.exports = async(srv) => {
 
 			}
 		}
-			var otherFilter = [];
-				if (CATEGORY_CODE != ""){
-					otherFilter.push(`CATEGORY_CODE = '${CATEGORY_CODE}'`)
+		var otherFilter = [];
+		if (CATEGORY_CODE != "") {
+			otherFilter.push(`CATEGORY_CODE = '${CATEGORY_CODE}'`)
+		}
+		if (CLAIM_STATUS != "") {
+			otherFilter.push(`CLAIM_STATUS = '${CLAIM_STATUS}'`)
+		}
+		if (CLAIM_TYPE != "") {
+			otherFilter.push(`CLAIM_TYPE = '${CLAIM_TYPE}'`)
+		}
+		if (Personnel_Area != "") {
+			otherFilter.push(`COMPANY = '${Personnel_Area}'`)
+		}
+		for (index in otherFilter) {
+			if (index == 0) {
+				if (sWHERE == ``) {
+					sWHERE += `WHERE ` + otherFilter[index];
+				} else {
+					sWHERE += ` AND ` + otherFilter[index];
 				}
-				if(CLAIM_STATUS != ""){
-					otherFilter.push(`CLAIM_STATUS = '${CLAIM_STATUS}'`)
-				}
-				if(CLAIM_TYPE!= ""){
-					otherFilter.push(`CLAIM_TYPE = '${CLAIM_TYPE}'`)
-				}
-				if(Personnel_Area!= ""){
-					otherFilter.push(`COMPANY = '${Personnel_Area}'`)
-				}
-				for (index in otherFilter){
-					if(index == 0){
-						if(sWHERE == ``){
-							sWHERE += `WHERE `+otherFilter[index];	
-						}
-						else{
-							sWHERE += ` AND `+otherFilter[index];
-						}
-						
-					}
-					else{
-						sWHERE += ` AND `+otherFilter[index];
-					}
-					
-				}
-				
+
+			} else {
+				sWHERE += ` AND ` + otherFilter[index];
+			}
+
+		}
 
 		var sAPPENDQUERY = Criterias_Employee + CLAIMJOIN + sWHERE;
 		console.log(sAPPENDQUERY);
@@ -5284,18 +5390,17 @@ module.exports = async(srv) => {
 		// console.log(result)
 		return result;
 	});
-	srv.on('admin_role_create' , async(req)=>{
-		var admin_list= req.data.ADMIN_ROLE;
+	srv.on('admin_role_create', async(req) => {
+		var admin_list = req.data.ADMIN_ROLE;
 		const tx = cds.transaction(req);
 		var adminout = await tx.run(INSERT.into(ADMIN_ROLE).entries(admin_list));
-		if(adminout != 0) {
+		if (adminout != 0) {
 			return "ADMIN_ROLE Table entries creation successful"
-		}
-		else{
-			return req.error(407,"ADMIN_ROLE table entries creation failed")
+		} else {
+			return req.error(407, "ADMIN_ROLE table entries creation failed")
 		}
 	});
-	
+
 	srv.before('READ', 'Co_Payment', async(req) => {
 		let results = {};
 		results.user = req.user.id;
@@ -6093,6 +6198,112 @@ module.exports = async(srv) => {
 	// 	}
 	// 	return finalValues;
 	// };
+	async function employeeEligibilitypostCal(req, tx, result, UserID) {
+		try {
+			// const tx = cds.transaction(req);
+			const result1 = await tx.run(
+				SELECT.from(PerPersonRelationship).where({
+					'PERSONIDEXTERNAL': UserID,
+					'CUSTOMSTRING6': 'Yes'
+				})
+			);
+			const eligibleClaimResult = await tx.run(
+				`SELECT
+					"CLAIM_CODE",
+					"SEQUENCE"
+				FROM "SF_DISTINCTEMPLOYEEELIGIBILITY"('${UserID}');`
+			);
+			const empCompRecurringResult = await tx.run(
+				`SELECT
+					"PAYCOMPVALUE"
+				FROM "SF_EMPPAYCOMPRECURRING"
+				WHERE "USERID"='${UserID}' AND "PAYCOMPONENT"='1002'`
+			);
+			let hasEntitlementAdded = false;
+			for (let i = 0; i < eligibleClaimResult.length; i++) {
+				const claimCodeFromDependent = await tx.run(
+					SELECT('Claim_Code').from(Benefit_Claim_Admin).where({
+						'Dependent_Claim_Code': eligibleClaimResult[i].CLAIM_CODE
+					})
+				);
+				let filteredResultClaimCode;
+				if (claimCodeFromDependent.length > 0) {
+					filteredResultClaimCode = result.find((item) => {
+						return item.CLAIM_CODE === claimCodeFromDependent[0].Claim_Code;
+					});
+					if (!filteredResultClaimCode) {
+						filteredResultClaimCode = {
+							CLAIM_CODE: claimCodeFromDependent[0].Claim_Code
+						};
+					}
+				} else {
+					filteredResultClaimCode = result.find((item) => {
+						return item.CLAIM_CODE === eligibleClaimResult[i].CLAIM_CODE;
+					});
+				}
+				if (filteredResultClaimCode) {
+					const result2 = await tx.run(
+						SELECT('Dependent_Claim_Code').from(Benefit_Claim_Admin).where({
+							'Claim_Code': filteredResultClaimCode.CLAIM_CODE
+						})
+					);
+					if (result2.length > 0 && result2[0].Dependent_Claim_Code) {
+						if (!hasEntitlementAdded && filteredResultClaimCode.CLAIM_CODE === 'OPTS') {
+							let dependentClaimResult = [];
+							const dependentClaimCode = eligibleClaimResult.find((item) => {
+								return item.CLAIM_CODE === result2[0].Dependent_Claim_Code;
+							});
+							if (dependentClaimCode) {
+								dependentClaimResult = await tx.run(
+									SELECT('Entitlement').from(Benefit_Eligibility).where({
+										'Claim_Code': dependentClaimCode.CLAIM_CODE,
+										'Sequence': dependentClaimCode.SEQUENCE
+									})
+								);
+							}
+							if (dependentClaimResult.length > 0) {
+								if (dependentClaimResult[0].Entitlement && dependentClaimResult[0].Entitlement !== '-') {
+									if (filteredResultClaimCode.ENTITLEMENT && filteredResultClaimCode.ENTITLEMENT !== '-' && parseFloat(filteredResultClaimCode.ENTITLEMENT) !==
+										0) {
+										let entitlementSum = parseFloat(filteredResultClaimCode.ENTITLEMENT) + parseFloat(dependentClaimResult[0].Entitlement);
+										filteredResultClaimCode.ENTITLEMENT = entitlementSum.toString();
+									}
+									// else {
+									//		filteredResultClaimCode.Entitlement = dependentClaimResult[0].Entitlement;
+									// }
+									hasEntitlementAdded = true;
+								}
+							}
+						}
+
+						if (result1.length === 0 || (result1.length > 0 && !(result1[0].customString6 === "Yes"))) {
+							let dependentClaimCodeIndex = result.findIndex((item) => {
+								return item.CLAIM_CODE === result2[0].Dependent_Claim_Code;
+							});
+							if (dependentClaimCodeIndex !== -1) {
+								result.splice(dependentClaimCodeIndex, 1);
+							}
+						}
+					}
+					if (filteredResultClaimCode && filteredResultClaimCode.BASIC_PAY && filteredResultClaimCode.BASIC_PAY !== 'NA' &&
+						empCompRecurringResult.length > 0 && empCompRecurringResult[0].PAYCOMPVALUE &&
+						parseFloat(empCompRecurringResult[0].PAYCOMPVALUE) > parseFloat(filteredResultClaimCode.BASIC_PAY)) {
+						let claimCodeIndex = result.findIndex((item) => {
+							return item.CLAIM_CODE === filteredResultClaimCode.CLAIM_CODE;
+						});
+						if (claimCodeIndex !== -1) {
+							result.splice(claimCodeIndex, 1);
+						}
+					}
+				}
+			}
+			return result;
+		} catch (error) {
+			console.log(error)
+			req.reject(error);
+		}
+
+	};
 	async function medicalClaimCPIYTDReport(tx, req) {
 		var USERID = req.data.USER_ID;
 		// var userid = reportEmployeeExtract(req).length != 0 ? JSON.stringify(reportEmployeeExtract(req)) : '';
@@ -6158,7 +6369,8 @@ module.exports = async(srv) => {
 				                  "END_DATE",
 				                  "ENTITLEMENT",
 				                  "CATEGORY_CODE",
-				                  "CATEGORY_DESC"
+				                  "CATEGORY_DESC",
+				                  "BASIC_PAY"
 				            FROM "SF_EMPLOYEEELIGIBILITY"('${USERID}')
 				                WHERE  "CLAIM_CODE" = '${claimcodeListValues[index].CLAIM_CODE}'  AND
 				                        "EFFECTIVE_DATE" >= '1900-01-01' AND
@@ -6167,6 +6379,8 @@ module.exports = async(srv) => {
 			entitlementFindList = await tx.run(entitlementFind);
 
 			if (entitlementFindList.length != 0) {
+				// post Eligiblity calculation 
+				entitlementFindList = await employeeEligibilitypostCal(req, tx, entitlementFindList, USERID);
 				var Entitlement = entitlementFindList[0].ENTITLEMENT;
 			} else {
 				var Entitlement = "0.00"
@@ -6486,10 +6700,14 @@ module.exports = async(srv) => {
 				CLAIM_CODE_VALUE: data.Claim_Code,
 				DESCRIPTION: claimcodeListValues[index].DESCRIPTION,
 				YEAR: CLAIM_YEAR,
-				YTD_OTHER: (isNaN(data.YTDOthers) || claimcodeListValues[index].CATEGORY_CODE != 'MC') ? "0.00" : parseFloat(data.YTDOthers).toFixed(2),
-				YTD_CONSULT: (isNaN(data.YTDConsultation) || claimcodeListValues[index].CATEGORY_CODE !=  'MC') ? "0.00" : parseFloat(data.YTDConsultation).toFixed(2),
-				YTD_WARD_CHARGE: (isNaN(data.YTDWardCharges)|| claimcodeListValues[index].CATEGORY_CODE !=  'MC')  ? "0.00" : parseFloat(data.YTDWardCharges).toFixed(2),
-				YTD_HOSPITAL_FEE: (isNaN(data.YTDHospitalFee) || claimcodeListValues[index].CATEGORY_CODE !=  'MC')? "0.00" : parseFloat(data.YTDHospitalFee).toFixed(2),
+				YTD_OTHER: (isNaN(data.YTDOthers) || claimcodeListValues[index].CATEGORY_CODE != 'MC') ? "0.00" : parseFloat(data.YTDOthers).toFixed(
+					2),
+				YTD_CONSULT: (isNaN(data.YTDConsultation) || claimcodeListValues[index].CATEGORY_CODE != 'MC') ? "0.00" : parseFloat(data.YTDConsultation)
+					.toFixed(2),
+				YTD_WARD_CHARGE: (isNaN(data.YTDWardCharges) || claimcodeListValues[index].CATEGORY_CODE != 'MC') ? "0.00" : parseFloat(data.YTDWardCharges)
+					.toFixed(2),
+				YTD_HOSPITAL_FEE: (isNaN(data.YTDHospitalFee) || claimcodeListValues[index].CATEGORY_CODE != 'MC') ? "0.00" : parseFloat(data.YTDHospitalFee)
+					.toFixed(2),
 				PENDING_AMOUNT: isNaN(data.pending) ? "0.00" : parseFloat(data.pending).toFixed(2),
 				TAKEN_AMOUNT: isNaN(data.taken) ? "0.00" : parseFloat(data.taken).toFixed(2),
 				BALANCE: isNaN(data.balance) ? "0.00" : parseFloat(data.balance).toFixed(2),

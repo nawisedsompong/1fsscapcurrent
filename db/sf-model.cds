@@ -65,6 +65,7 @@ entity EmpJob
 		employeeType:String(100);
 		standardHours:Decimal(10,2);
 		endDate:DateTime;
+		customString16: String(100); //Scholar Status
 };
 entity EmpJobRelationships {
 		key userid:String(100);
@@ -256,6 +257,7 @@ entity PerPersonRelationship {
 				customDate1: DateTime;
 				customString1: String;
 				isPrimary:Boolean;
+				isPrimarystr:String;
 				lastModifiedBy: String;
 				lastModifiedDateTime: DateTime;
 				lastModifiedOn: DateTime;
@@ -287,6 +289,9 @@ where PerPersonal.personIdExternal = :UserID;
 
 define view EmployeeInformationforElig with parameters UserID:String(20) as select from PerPersonalView as PerPersonal 
 left join EmpJob as EmpJob on EmpJob.userId = PerPersonal.personIdExternal 
+// inner join cal.SESSION_MASTER_DETAILS as masterdetail
+// on masterdetail.PERSONIDEXTERNAL=PerPersonal.personIdExternal 
+// or masterdetail.ADMIN = 'X' or masterdetail.CLAIM_COORD = 'X'
 distinct 
 {
 	key PerPersonal.personIdExternal,
@@ -305,6 +310,7 @@ distinct
 		EmpJob.seqNumber
 }
 where PerPersonal.personIdExternal = :UserID and EmpJob.startDate <= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS') and EmpJob.endDate >= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS');
+// and ((masterdetail.ADMIN = 'X' or (masterdetail.ADMIN is null and masterdetail.EMAILADDRESS = $user)) or ( masterdetail.CLAIM_COORD = 'X' or (masterdetail.CLAIM_COORD is null and masterdetail.EMAILADDRESS = $user)));
 
 define view MaxEmpWorkPermit with parameters UserID:String(20) as select from EmpWorkPermit {
 	userid,
@@ -490,7 +496,19 @@ and EmpJob.endDate >= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM
     	key EMPLOYEE_TYPE_CODE:String(150);
     		EMPLOYEE_TYPE_DESC:String(150);
     }
-	
+    
+    entity SCH_STATUS{
+       key COMPANY: String(50);
+       key STATUS_ID: String(50);
+    	   STATUS_DESC :String(150);
+    }
+    
+	entity SCH_CLUSTER{
+       key COMPANY: String(50);
+       key CLUSTER_ID: String(50);
+    	   CLUSTER_DESC :String(150);
+    }
+    
 	define view EmployeeInformationall as select from PerPersonalView as PerPersonal 
 left join EmpJob as EmpJob on EmpJob.userId = PerPersonal.personIdExternal 
 and EmpJob.startDate <= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS') and EmpJob.endDate >= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS')
@@ -596,7 +614,42 @@ define view PerPersonalView as select from PerPersonal {
 // } group by firstName,personIdExternal,lastName
 }where startDate <= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS') and endDate >= TO_SECONDDATE (CONCAT(CURRENT_DATE, ' 00:00:00'), 'YYYY-MM-DD HH24:MI:SS');
 
-	
+define view PerEmailView as select from PerEmail
+{
+		 personIdExternal as USERID,
+		emailAddress as EMAIL
+}
+where emailAddress=$user;
+
+define view PER_NATIONALID_MAX as select from PER_NATIONALID as nationId
+{
+	nationId.personIdExternal,
+	max(nationId.createdDateTime) as createdDateTime
+}group by nationId.personIdExternal;
+
+define view PER_NATIONALID_VIEW as select from PER_NATIONALID_MAX as nationId
+inner join PER_NATIONALID as nationIdAll 
+on nationIdAll.personIdExternal = nationId.personIdExternal
+and nationIdAll.createdDateTime = nationId.createdDateTime
+{
+				nationIdAll.personIdExternal,
+				nationIdAll.cardType,
+				nationIdAll.country,
+				nationIdAll.createdBy,
+				nationIdAll.attachmentId,
+				nationIdAll.createdDateTime,
+				nationIdAll.createdOn,
+				nationIdAll.customDate1,
+				nationIdAll.customString1,
+				nationIdAll.isPrimary,
+				nationIdAll.lastModifiedBy,
+				nationIdAll.lastModifiedDateTime,
+				nationIdAll.lastModifiedOn,
+				nationIdAll.nationalId,
+				nationIdAll.notes,
+				nationIdAll.operation
+};
+
 define view EmpJobView with parameters YearValue:String(10)	as select from EmpJob as Job
 left join cal.YTD_EMPLOYEE_CLAIM_STATUS as YTD
 on YTD.EMPLOYEE_ID = Job.userId
@@ -675,8 +728,40 @@ on scheme.externalCode = scholar.externalCode
 		// scheme.mdfSystemRecordStatus,
 	
 };
+//Start Charge pay out Report Sahas MOHHSCH
+define view SCHOLAR_SCHEME_MANCOST_DATE with parameters postingFrom:Date,postingTo:Date  as select from SCHOLAR_SCHEME as schscheme
+left join INFLIGHT_SCHOLAR as inflight 
+on inflight.externalCode = schscheme.externalCode
+{
+	schscheme.externalCode,
+	CASE WHEN inflight.cust_courseStartDate <= :postingFrom and inflight.cust_expectedCourseEndDate >= :postingFrom then :postingFrom
+		 when inflight.cust_courseStartDate >= :postingFrom and inflight.cust_expectedCourseEndDate >= :postingFrom then inflight.cust_courseStartDate
+		 else null end as mancost_startDate,
+	CASE WHEN inflight.cust_courseStartDate <= :postingTo and inflight.cust_expectedCourseEndDate >= :postingTo then :postingTo
+		 when inflight.cust_courseStartDate <= :postingTo and inflight.cust_expectedCourseEndDate <= :postingTo then inflight.cust_expectedCourseEndDate
+		 else null end as mancost_endDate
+};
 
-define view Total_Disbursement as select from SCHOLAR_SCHEME as schscheme
+define view SCHOLAR_SCHEME_MANCOST with parameters postingFrom:Date,postingTo:Date  as select from SCHOLAR_SCHEME_MANCOST_DATE( postingFrom : :postingFrom,postingTo : :postingTo) as schscheme
+left join EmpJob as EmpJob
+on EmpJob.userId = schscheme.externalCode
+distinct{
+	schscheme.externalCode,
+	CASE WHEN ((schscheme.mancost_startDate >= EmpJob.startDate AND schscheme.mancost_endDate <= EmpJob.endDate) AND (1 <= Month(EmpJob.startDate) AND 3 >= Month(EmpJob.startDate))) 
+	  OR ((schscheme.mancost_startDate >= EmpJob.endDate AND schscheme.mancost_endDate >= EmpJob.endDate) AND (1 <= Month(EmpJob.endDate) AND 3 >= Month(EmpJob.endDate))) 
+	  AND (EmpJob.customString16 = 'In-flight' OR EmpJob.customString16 = 'In-Flight') THEN '340.25' ELSE '0.00' END AS Q1_ManCost,
+	CASE WHEN ((schscheme.mancost_startDate >= EmpJob.startDate AND schscheme.mancost_endDate <= EmpJob.endDate) AND (4 <= Month(EmpJob.startDate) AND 6 >= Month(EmpJob.startDate))) 
+	  OR ((schscheme.mancost_startDate >= EmpJob.endDate AND schscheme.mancost_endDate >= EmpJob.endDate) AND (4 <= Month(EmpJob.endDate) AND 6 >= Month(EmpJob.endDate))) 
+	  AND (EmpJob.customString16 = 'In-flight' OR EmpJob.customString16 = 'In-Flight') THEN '340.25' ELSE '0.00' END AS Q2_ManCost,
+	CASE WHEN ((schscheme.mancost_startDate >= EmpJob.startDate AND schscheme.mancost_endDate <= EmpJob.endDate) AND (7 <= Month(EmpJob.startDate) AND 9 >= Month(EmpJob.startDate))) 
+	  OR ((schscheme.mancost_startDate >= EmpJob.endDate AND schscheme.mancost_endDate >= EmpJob.endDate) AND (7 <= Month(EmpJob.endDate) AND 9 >= Month(EmpJob.endDate))) 
+	  AND (EmpJob.customString16 = 'In-flight' OR EmpJob.customString16 = 'In-Flight') THEN '340.25' ELSE '0.00' END AS Q3_ManCost,
+	CASE WHEN ((schscheme.mancost_startDate >= EmpJob.startDate AND schscheme.mancost_endDate <= EmpJob.endDate) AND (10 <= Month(EmpJob.startDate) AND 12 >= Month(EmpJob.startDate))) 
+	  OR ((schscheme.mancost_startDate >= EmpJob.endDate AND schscheme.mancost_endDate >= EmpJob.endDate) AND (10 <= Month(EmpJob.endDate) AND 12 >= Month(EmpJob.endDate))) 
+	  AND (EmpJob.customString16 = 'In-flight' OR EmpJob.customString16 = 'In-Flight') THEN '340.25' ELSE '0.00' END AS Q4_ManCost
+};
+
+define view Total_Disbursement with parameters postingFrom:Date,postingTo:Date  as select from SCHOLAR_SCHEME as schscheme
 left join db.DISBURSMENT_CHARGEOUT_CLAIM as claim
 on claim.EMPLOYEE_ID = schscheme.externalCode
 {
@@ -684,25 +769,214 @@ on claim.EMPLOYEE_ID = schscheme.externalCode
 	schscheme.effectiveStartDate,
 	schscheme.cust_yearOfAward,
 	schscheme.cust_scholarshipScheme,
-	 sum(claim.CLAIM_AMOUNT) as total_disbursement
+	 sum(claim.CLAIM_AMOUNT) as total_disbursement,
+	 sum(claim.Q1_AMT) as Q1_DisbursementAmt,
+	 sum(claim.Q2_AMT) as Q2_DisbursementAmt,
+	 sum(claim.Q3_AMT) as Q3_DisbursementAmt,
+	 sum(claim.Q4_AMT) as Q4_DisbursementAmt,
+	 sum(claim.Q1_AMT_tution) as Q1_DisbursementAmt_Tution,
+	 sum(claim.Q2_AMT_tution) as Q2_DisbursementAmt_Tution,
+	 sum(claim.Q3_AMT_tution) as Q3_DisbursementAmt_Tution,
+	 sum(claim.Q4_AMT_tution) as Q4_DisbursementAmt_Tution,
+	 sum(claim.Q1_AMT_Stipend) as Q1_DisbursementAmt_Stipend,
+	 sum(claim.Q2_AMT_Stipend) as Q2_DisbursementAmt_Stipend,
+	 sum(claim.Q3_AMT_Stipend) as Q3_DisbursementAmt_Stipend,
+	 sum(claim.Q4_AMT_Stipend) as Q4_DisbursementAmt_Stipend,
+	 sum(claim.Q1_AMT_SDF) as Q1_DisbursementAmt_SDF,
+	 sum(claim.Q2_AMT_SDF) as Q2_DisbursementAmt_SDF,
+	 sum(claim.Q3_AMT_SDF) as Q3_DisbursementAmt_SDF,
+	 sum(claim.Q4_AMT_SDF) as Q4_DisbursementAmt_SDF,
+	 sum(claim.Q1_AMT_Clinical) as Q1_DisbursementAmt_Clinical,
+	 sum(claim.Q2_AMT_Clinical) as Q2_DisbursementAmt_Clinical,
+	 sum(claim.Q3_AMT_Clinical) as Q3_DisbursementAmt_Clinical,
+	 sum(claim.Q4_AMT_Clinical) as Q4_DisbursementAmt_Clinical,
+	 sum(claim.Q1_AMT_Other) as Q1_DisbursementAmt_Other,
+	 sum(claim.Q2_AMT_Other) as Q2_DisbursementAmt_Other,
+	 sum(claim.Q3_AMT_Other) as Q3_DisbursementAmt_Other,
+	 sum(claim.Q4_AMT_Other) as Q4_DisbursementAmt_Other
 }
+where claim.POST_DATE <= :postingTo and claim.POST_DATE >= :postingFrom
 group by schscheme.cust_yearOfAward,schscheme.cust_scholarshipScheme,schscheme.effectiveStartDate,schscheme.externalCode;
-	
-define view CHARGE_PAYABLE_OUT as select from SCHOLAR_SCHEME as schscheme
-left join Total_Disbursement as Disbursement
+
+
+define view CHARGE_PAYABLE_OUT_CAL with parameters postingFrom:Date,postingTo:Date as select from SCHOLAR_SCHEME as schscheme
+left join Total_Disbursement( postingFrom : :postingFrom,postingTo : :postingTo) as Disbursement
 on Disbursement.cust_yearOfAward = schscheme.cust_yearOfAward
 and Disbursement.cust_scholarshipScheme = schscheme.cust_scholarshipScheme
 and Disbursement.effectiveStartDate = schscheme.effectiveStartDate
 and Disbursement.externalCode = schscheme.externalCode
 {
-		schscheme.externalCode,
-		schscheme.effectiveStartDate,
-		schscheme.cust_yearOfAward,
-		schscheme.cust_scholarshipScheme,
-		schscheme.cust_fundingMOH,
-		schscheme.cust_fundingCluster,
-		schscheme.cust_allocatedCluster,
-		(cast(schscheme.cust_fundingCluster as Decimal(10,2)) * Disbursement.total_disbursement) as Payable_moh,
-		(cast(schscheme.cust_fundingMOH as Decimal(10,2)) * Disbursement.total_disbursement) as Payable_cluster
+		schscheme.externalCode as SCHOLAR_ID,
+		schscheme.cust_yearOfAward as YEAR_OF_AWARD,
+		schscheme.cust_scholarshipScheme as SCHOLAR_SCHEME,
+		schscheme.cust_allocatedCluster as FUNDING_CLUSTER,
+		CAST(schscheme.effectiveStartDate AS Date) as START_DATE,
+		schscheme.cust_fundingMOH as MOH_FUNDING_PERCENTAGE,
+		cast((cast(schscheme.cust_fundingCluster as Decimal(10,2)) * Disbursement.total_disbursement) as Decimal(10,2)) as PAYABLE_AMOUNT_MOH,
+		schscheme.cust_fundingCluster as FUNDING_CLUSTER_PERCENTAGE,
+	    cast((cast(schscheme.cust_fundingMOH as Decimal(10,2)) * Disbursement.total_disbursement) as Decimal(10,2))  as PAYABLE_AMOUNT_CLUSTER
 };
+
+define view CHARGE_PAYABLE_OUT with parameters postingFrom:Date,postingTo:Date as select from CHARGE_PAYABLE_OUT_CAL ( postingFrom : :postingFrom,postingTo : :postingTo)  as schscheme
+left join sf.PerPersonalView as SCHOLARNAME
+on SCHOLARNAME.personIdExternal = schscheme.SCHOLAR_ID
+{
+		schscheme.SCHOLAR_ID,
+		SCHOLARNAME.fullName as SCHOLAR_NAME,
+		schscheme.YEAR_OF_AWARD,
+		schscheme.SCHOLAR_SCHEME,
+		schscheme.FUNDING_CLUSTER,
+		CONCAT(EXTRACT (DAY FROM TO_DATE (START_DATE, 'YYYY-MM-DD')),CONCAT('-',CONCAT(SUBSTRING(MONTHNAME(START_DATE),1,3),CONCAT('-',EXTRACT (YEAR FROM TO_DATE (START_DATE, 'YYYY-MM-DD')))))) as START_DATE,
+		schscheme.MOH_FUNDING_PERCENTAGE,
+		schscheme.PAYABLE_AMOUNT_MOH,
+		schscheme.FUNDING_CLUSTER_PERCENTAGE,
+		schscheme.PAYABLE_AMOUNT_CLUSTER,
+		cast((schscheme.PAYABLE_AMOUNT_MOH + schscheme.PAYABLE_AMOUNT_CLUSTER) as Decimal(10,2)) as TOTAL_PAYABLE_AMOUNT
+};
+
+define view Inflight_date as select from INFLIGHT_SCHOLAR as inflight
+{
+		effectiveStartDate,
+		externalCode,
+		createdBy,	
+		createdDateTime,	
+		cust_country,
+		CAST(cust_courseEndDate AS Date) as cust_courseEndDate,
+		CAST(cust_courseStartDate AS Date) as cust_courseStartDate,
+		cust_cumulativeGPA,
+		cust_cumulativeGPA2,	
+		CAST(cust_expectedCourseEndDate AS Date) as cust_expectedCourseEndDate,
+		cust_nomenclature,	
+		cust_nomenclature2,	
+		cust_programme1,	
+		cust_programme2,	
+		cust_remarks,	
+		cust_school,	
+		cust_semesterGPA,	
+		cust_semesterGPA2,	
+		cust_semesterTrimester,	
+		cust_year,
+		externalName,	
+		lastModifiedBy,	
+		lastModifiedDateTime,
+		mdfSystemEffectiveEndDate,
+		mdfSystemRecordStatus
+};
+
+define view SCHOLAR_EXPENSE with parameters postingFrom:Date,postingTo:Date as select from SCHOLAR_SCHEME as schscheme
+left join Total_Disbursement ( postingFrom : :postingFrom,postingTo : :postingTo)  as Disbursement
+on Disbursement.cust_yearOfAward = schscheme.cust_yearOfAward
+and Disbursement.cust_scholarshipScheme = schscheme.cust_scholarshipScheme
+and Disbursement.effectiveStartDate = schscheme.effectiveStartDate
+and Disbursement.externalCode = schscheme.externalCode
+left join Inflight_date as inflight 
+on inflight.externalCode = schscheme.externalCode
+left join PerPersonalView as PerInfo
+on PerInfo.personIdExternal = schscheme.externalCode
+left join PER_NATIONALID_VIEW as nationId
+on nationId.personIdExternal = schscheme.externalCode
+left join SCHOLAR_SCHEME_MANCOST( postingFrom : :postingFrom,postingTo : :postingTo) as mancost
+on mancost.externalCode = schscheme.externalCode
+{
+		SUBSTRING(nationId.nationalId,length(nationId.nationalId)-2) as NRIC,
+		schscheme.externalCode as SCHOLAR_ID,
+		PerInfo.fullName as SCHOLAR_NAME,
+		schscheme.cust_allocatedCluster as FUNDING_CLUSTER,
+		schscheme.cust_allocatedInstitution as INSTITUTION,
+		schscheme.cust_yearOfAward as YEAR_OF_AWARD,
+		schscheme.cust_discipline as DISCIPLINE,
+		schscheme.cust_awardType as TYPE_OF_AWARD,
+		inflight.cust_school AS UNIVERSITY,
+		// inflight.cust_courseStartDate as ESTIMATED_COURSE_START_DATE,
+		CONCAT(EXTRACT (DAY FROM TO_DATE (inflight.cust_courseStartDate, 'YYYY-MM-DD')),CONCAT('-',CONCAT(SUBSTRING(MONTHNAME(inflight.cust_courseStartDate),1,3),CONCAT('-',EXTRACT (YEAR FROM TO_DATE (inflight.cust_courseStartDate, 'YYYY-MM-DD')))))) as ESTIMATED_COURSE_START_DATE,
+		CONCAT(EXTRACT (DAY FROM TO_DATE (inflight.cust_expectedCourseEndDate, 'YYYY-MM-DD')),CONCAT('-',CONCAT(SUBSTRING(MONTHNAME(inflight.cust_expectedCourseEndDate),1,3),CONCAT('-',EXTRACT (YEAR FROM TO_DATE (inflight.cust_expectedCourseEndDate, 'YYYY-MM-DD')))))) as ESTIMATED_COURSE_END_DATE,
+		// inflight.cust_expectedCourseEndDate as ESTIMATED_COURSE_END_DATE,
+		schscheme.cust_scholarshipScheme as SCHOLAR_SCHEME,
+		// schscheme.cust_fundingCluster as FUNDING_CLUSTER_PERCENTAGE,
+		Disbursement.total_disbursement as TOTAL_DISBURSEMENT_COST,
+		Disbursement.Q1_DisbursementAmt AS Q1_DISBURSEMENT_COST,
+		Disbursement.Q1_DisbursementAmt_Tution AS Q1_DISBURSEMENT_TUITION,
+		Disbursement.Q1_DisbursementAmt_Stipend AS Q1_DISBURSEMENT_STIPEND,
+		Disbursement.Q1_DisbursementAmt_SDF AS Q1_DISBURSEMENT_SDF,
+		Disbursement.Q1_DisbursementAmt_Clinical AS Q1_DISBURSEMENT_CLINICAL_PLACEMENT,
+		Disbursement.Q1_DisbursementAmt_Other,
+		mancost.Q1_ManCost,
+		Disbursement.Q2_DisbursementAmt AS Q2_DISBURSEMENT_COST,
+		Disbursement.Q2_DisbursementAmt_Tution AS Q2_DISBURSEMENT_TUITION,
+		Disbursement.Q2_DisbursementAmt_Stipend AS Q2_DISBURSEMENT_STIPEND,
+		Disbursement.Q2_DisbursementAmt_SDF AS Q2_DISBURSEMENT_SDF,
+		Disbursement.Q2_DisbursementAmt_Clinical AS Q2_DISBURSEMENT_CLINICAL_PLACEMENT,
+		Disbursement.Q2_DisbursementAmt_Other,
+		mancost.Q2_ManCost,
+		Disbursement.Q3_DisbursementAmt AS Q3_DISBURSEMENT_COST,
+		Disbursement.Q3_DisbursementAmt_Tution AS Q3_DISBURSEMENT_TUITION,
+		Disbursement.Q3_DisbursementAmt_Stipend AS Q3_DISBURSEMENT_STIPEND,
+		Disbursement.Q3_DisbursementAmt_SDF AS Q3_DISBURSEMENT_SDF,
+		Disbursement.Q3_DisbursementAmt_Clinical AS Q3_DISBURSEMENT_CLINICAL_PLACEMENT,
+		Disbursement.Q3_DisbursementAmt_Other,
+		mancost.Q3_ManCost,
+		Disbursement.Q4_DisbursementAmt AS Q4_DISBURSEMENT_COST, 
+		Disbursement.Q4_DisbursementAmt_Tution AS Q4_DISBURSEMENT_TUITION,
+		Disbursement.Q4_DisbursementAmt_Stipend AS Q4_DISBURSEMENT_STIPEND, 
+		Disbursement.Q4_DisbursementAmt_SDF AS Q4_DISBURSEMENT_SDF,
+		Disbursement.Q4_DisbursementAmt_Clinical AS Q4_DISBURSEMENT_CLINICAL_PLACEMENT,
+		Disbursement.Q4_DisbursementAmt_Other,
+		mancost.Q4_ManCost
+};
+
+define view INDIVIDUAL_SCH_EXP with parameters postingFrom:Date,postingTo:Date as select from SCHOLAR_SCHEME as schscheme
+left join db.DISBURSMENT_CHARGEOUT_CLAIM as Disbursement
+on Disbursement.EMPLOYEE_ID = schscheme.externalCode
+left join PerPersonalView as PerInfo
+on PerInfo.personIdExternal = schscheme.externalCode
+left join INFLIGHT_SCHOLAR as inflight 
+on inflight.externalCode = schscheme.externalCode
+left join SMS_Replication_Logs as logs
+on Disbursement.CLAIM_REFERENCE = logs.Internal_Claim_Reference
+{
+	schscheme.externalCode as SCHOLAR_ID,
+    PerInfo.fullName as SCHOLAR_NAME,
+	schscheme.cust_yearOfAward as YEAR_OF_AWARD,
+	schscheme.cust_discipline as DISCIPLINE,
+	inflight.cust_school AS UNIVERSITY,
+	schscheme.cust_scholarshipScheme as SCHOLAR_SCHEME, 
+	Disbursement.CLAIM_REFERENCE,
+	Disbursement.CLAIM_CATEGORY AS CLAIM_TYPE,
+	schscheme.cust_allocatedCluster as FUNDING_CLUSTER,
+	// schscheme.cust_fundingCluster as FUNDING_CLUSTER_PERCENTAGE,
+	// Disbursement.POST_DATE,
+	CONCAT(EXTRACT (DAY FROM TO_DATE (Disbursement.POST_DATE, 'YYYY-MM-DD')),CONCAT('-',CONCAT(SUBSTRING(MONTHNAME(Disbursement.POST_DATE),1,3),CONCAT('-',EXTRACT (YEAR FROM TO_DATE (Disbursement.POST_DATE, 'YYYY-MM-DD')))))) as POST_DATE,
+	Disbursement.ITEM_DESC AS ITEM_DESCRIPTION,
+	Disbursement.CLAIM_AMOUNT as AMOUNT_IN_FOREIGN_CURRENCY,
+	Disbursement.CURRENCY as FOREIGN_CURRENCY,
+	Disbursement.POST_CURRENCY as LOCAL_CURRENCY,
+	Disbursement.POST_CLAIM_AMOUNT as AMOUNTIN_LOCAL_CURRENCY,
+	logs.Export_Reference as EXPORT_REFERENCE,
+	logs.Master_Claim_Reference as CLAIM_REFERENCE_NUMBER,
+	logs.Internal_Claim_Reference as LINEITEM_REFERENCE_NUMBER
+}
+where Disbursement.POST_DATE <= :postingTo and Disbursement.POST_DATE >= :postingFrom;
+//END  Charge pay out Report Sahas MOHHSCH
+
+define view BANK_ACC_VIEW as select from BANK_ACC as bank
+inner join PerEmailView as email
+on email.USERID=bank.externalCode{
+     	effectiveStartDate,
+		externalCode,	
+		createdBy,	
+		createdDateTime,	
+		cust_accountOwner,	
+		cust_bankAccountNumber,	
+		cust_bankBranchCode,	
+		cust_bankCode,
+		cust_bankName,	
+		cust_currency,	
+		cust_primaryBankAccount,
+		cust_primaryBankAccountStr,
+		cust_vendorCode,	
+		externalName,	
+		lastModifiedBy,	
+		lastModifiedDateTime,
+		mdfSystemEffectiveEndDate
+}
 }

@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Calculation:scenario xmlns:Calculation="http://www.sap.com/ndb/BiModelCalculation.ecore" id="CALCULATION_SESSION_MASTER_DETAILS" applyPrivilegeType="NONE" dataCategory="DIMENSION" schemaVersion="3.0" outputViewType="Projection" cacheInvalidationPeriod="HOURLY" enforceSqlExecution="false">
+<descriptions defaultDescription="CALCULATION_SESSION_MASTER_DETAILS"/>
+<localVariables/>
+<variableMappings/>
+<dataSources>
+  <DataSource id="SESSION_MASTER_FETCH" type="TABLE_FUNCTION">
+    <resourceUri>SESSION_MASTER_FETCH</resourceUri>
+  </DataSource>
+</dataSources>
+<calculationViews/>
+<logicalModel id="SESSION_MASTER_FETCH">
+  <attributes>
+    <attribute id="BEN_COORDIN" order="1" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_COORDIN"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="BEN_COORDIN"/>
+    </attribute>
+    <attribute id="DIVISION" order="2" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="DIVISION"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="DIVISION"/>
+    </attribute>
+    <attribute id="CLAIM_COORD" order="3" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="CLAIM_COORD"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="CLAIM_COORD"/>
+    </attribute>
+    <attribute id="BEN_MASS_CONFIG" order="4" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_MASS_CONFIG"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="BEN_MASS_CONFIG"/>
+    </attribute>
+    <attribute id="BEN_ON_BEHALF" order="5" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_ON_BEHALF"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="BEN_ON_BEHALF"/>
+    </attribute>
+    <attribute id="SEQNUMBER" order="6" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="SEQNUMBER"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="SEQNUMBER"/>
+    </attribute>
+    <attribute id="MANAGER" order="7" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="MANAGER"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="MANAGER"/>
+    </attribute>
+    <attribute id="BEN_TABLE_MAINT" order="8" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_TABLE_MAINT"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="BEN_TABLE_MAINT"/>
+    </attribute>
+    <attribute id="BEN_HR_MAKER" order="9" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_HR_MAKER"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="BEN_HR_MAKER"/>
+    </attribute>
+    <attribute id="BEN_MASS_CREATE" order="10" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_MASS_CREATE"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="BEN_MASS_CREATE"/>
+    </attribute>
+    <attribute id="COMPANY" order="11" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="COMPANY"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="COMPANY"/>
+    </attribute>
+    <attribute id="BEN_APPROVAL" order="12" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_APPROVAL"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="BEN_APPROVAL"/>
+    </attribute>
+    <attribute id="DEPARTMENT" order="13" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="DEPARTMENT"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="DEPARTMENT"/>
+    </attribute>
+    <attribute id="FIRSTNAME" order="14" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="FIRSTNAME"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="FIRSTNAME"/>
+    </attribute>
+    <attribute id="MANAGERID" order="15" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="MANAGERID"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="MANAGERID"/>
+    </attribute>
+    <attribute id="ADMIN" order="16" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="ADMIN"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="ADMIN"/>
+    </attribute>
+    <attribute id="EMPLOYEETYPE" order="17" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="EMPLOYEETYPE"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="EMPLOYEETYPE"/>
+    </attribute>
+    <attribute id="BEN_REPORT" order="18" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_REPORT"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="BEN_REPORT"/>
+    </attribute>
+    <attribute id="BEN_INFO" order="19" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_INFO"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="BEN_INFO"/>
+    </attribute>
+    <attribute id="EMPLOYEECLASS" order="20" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="EMPLOYEECLASS"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="EMPLOYEECLASS"/>
+    </attribute>
+    <attribute id="USERID" order="21" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="USERID"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="USERID"/>
+    </attribute>
+    <attribute id="ADMIN_ROLE" order="22" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="ADMIN_ROLE"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="ADMIN_ROLE"/>
+    </attribute>
+    <attribute id="PERSONIDEXTERNAL" order="23" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="PERSONIDEXTERNAL"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="PERSONIDEXTERNAL"/>
+    </attribute>
+    <attribute id="PAYGRADE" order="24" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="PAYGRADE"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="PAYGRADE"/>
+    </attribute>
+    <attribute id="BEN_COPAY" order="25" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_COPAY"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="BEN_COPAY"/>
+    </attribute>
+    <attribute id="BEN_HR_CHECKER" order="26" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_HR_CHECKER"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="BEN_HR_CHECKER"/>
+    </attribute>
+    <attribute id="LOCATION" order="27" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="LOCATION"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="LOCATION"/>
+    </attribute>
+    <attribute id="STARTDATE_1" order="28" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="STARTDATE_1"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="STARTDATE_1"/>
+    </attribute>
+    <attribute id="LASTNAME" order="29" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="LASTNAME"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="LASTNAME"/>
+    </attribute>
+    <attribute id="EMAILADDRESS" order="30" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="EMAILADDRESS"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="EMAILADDRESS"/>
+    </attribute>
+    <attribute id="DIVISION_DESC" order="31" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="DIVISION_DESC"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="DIVISION_DESC"/>
+    </attribute>
+    <attribute id="CUSTOMSTRING4" order="32" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="CUSTOMSTRING4"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="CUSTOMSTRING4"/>
+    </attribute>
+    <attribute id="STANDARDHOURS" order="33" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="STANDARDHOURS"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="STANDARDHOURS"/>
+    </attribute>
+    <attribute id="BEN_ELIGIBILITY" order="34" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_ELIGIBILITY"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="BEN_ELIGIBILITY"/>
+    </attribute>
+    <attribute id="ENDDATE" order="35" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="ENDDATE"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="ENDDATE"/>
+    </attribute>
+    <attribute id="DEPARTMENT_DESC" order="36" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="DEPARTMENT_DESC"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="DEPARTMENT_DESC"/>
+    </attribute>
+    <attribute id="FULLNAME" order="37" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="FULLNAME"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="FULLNAME"/>
+    </attribute>
+    <attribute id="STARTDATE" order="38" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="STARTDATE"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="STARTDATE"/>
+    </attribute>
+    <attribute id="CUSTOMSTRING3" order="39" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="CUSTOMSTRING3"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="CUSTOMSTRING3"/>
+    </attribute>
+    <attribute id="BEN_MED_SAVE" order="40" displayAttribute="false" attributeHierarchyActive="false">
+      <descriptions defaultDescription="BEN_MED_SAVE"/>
+      <keyMapping columnObjectName="SESSION_MASTER_FETCH" columnName="BEN_MED_SAVE"/>
+    </attribute>
+  </attributes>
+  <calculatedAttributes/>
+  <baseMeasures/>
+  <calculatedMeasures/>
+  <restrictedMeasures/></logicalModel>
+<layout>
+  <shapes>
+    <shape expanded="true" modelObjectName="Output" modelObjectNameSpace="MeasureGroup">
+      <upperLeftCorner x="40" y="85"/>
+    </shape>
+  </shapes>
+</layout>
+</Calculation:scenario>

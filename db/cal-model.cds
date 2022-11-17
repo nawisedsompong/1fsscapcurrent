@@ -56,6 +56,50 @@ key     USERID: String(100);
 		BEN_MED_SAVE : String(10);
 		DIVISION_DESC:String(150);
 		DEPARTMENT_DESC:String(150);
+		CLAIM_COORD:String(50);
+}
+
+@cds.persistence.calcview
+@cds.persistence.exists 
+entity SESSION_MASTER_DETAILS {
+key     SEQNUMBER: String(100) ; 
+key     STARTDATE: String ; 
+key     USERID: String(100); 
+		CUSTOMSTRING3: String(100); 
+    	CUSTOMSTRING4: String(100)  ; 
+    	PAYGRADE: String(100)  ; 
+    	EMPLOYEECLASS: String(100) ; 
+    	COMPANY: String(100) ; 
+    	LOCATION: String(100) ; 
+		MANAGERID: String(100)  ; 
+		DEPARTMENT: String(100) ; 
+		DIVISION: String(100); 
+		EMPLOYEETYPE: String(100); 
+		STANDARDHOURS: Decimal(10, 2); 
+		PERSONIDEXTERNAL: String(100); 
+		STARTDATE_1: String; 
+		FIRSTNAME: String(100); 
+		LASTNAME: String(100); 
+		EMAILADDRESS: String(100); 
+		ADMIN: String(50); 
+		MANAGER: String(50);
+		ADMIN_ROLE : String(10);
+		BEN_INFO : String(10);
+		BEN_COPAY : String(10);
+		BEN_ELIGIBILITY : String(10);
+		BEN_APPROVAL : String(10);
+		BEN_HR_MAKER : String(10);
+		BEN_HR_CHECKER : String(10);
+		BEN_TABLE_MAINT : String(10);
+		BEN_MASS_CREATE : String(10);
+		BEN_MASS_CONFIG : String(10);
+		BEN_ON_BEHALF : String(10);
+		BEN_COORDIN : String(10);
+		BEN_REPORT : String(10);
+		BEN_MED_SAVE : String(10);
+		DIVISION_DESC:String(150);
+		DEPARTMENT_DESC:String(150);
+		CLAIM_COORD:String(50);
 }
 
 @cds.persistence.calcview
@@ -166,6 +210,8 @@ entity PRORATED_CLAIMS_YTD2 as
    	on ( prrCytd.DEPARMENT = beClmDep.Department_Code AND prrCytd.PERSONAL_AREA = beClmDep.Company )
    	left join be.Claim_Division as beClmDiv
    	on ( prrCytd.DIVISION = beClmDiv.Division_Code AND prrCytd.PERSONAL_AREA = beClmDiv.Company )
+ //  	inner join sf.PerEmailView as email
+	// on email.USERID=prrCytd.EMPLOYEE
    	{
 		prrCytd.EMPLOYEE,
 		prsnl.customString2 as NAME:String,
@@ -370,6 +416,7 @@ entity EXPORT_REPORT_STATUS {
 		FILE_NAME: String(50);
 		REPORT_TYPE: String(20);
 		STATUS: String(20);
+		MESSAGE: String;
 	    FILE_BASE64 : LargeString;
 }
 
